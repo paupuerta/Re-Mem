@@ -1,0 +1,258 @@
+---
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: re-mem
+
+---
+# PostgreSQL ConfigMap for initialization
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-config
+  namespace: re-mem
+data:
+  init.sql: |
+    CREATE TABLE users (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        email VARCHAR(255) NOT NULL UNIQUE,
+        name VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE cards (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id),
+        question TEXT NOT NULL,
+        answer TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE reviews (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        card_id UUID NOT NULL REFERENCES cards(id),
+        user_id UUID NOT NULL REFERENCES users(id),
+        grade INT NOT NULL CHECK (grade >= 0 AND grade <= 5),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+---
+# PostgreSQL Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: re-mem
+type: Opaque
+stringData:
+  postgres-user: re_mem
+  postgres-password: secure_password_change_me
+  postgres-db: re_mem
+
+---
+# PostgreSQL StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: re-mem
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+          name: postgres
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: postgres-password
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: postgres-db
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        - name: init-scripts
+          mountPath: /docker-entrypoint-initdb.d
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U $POSTGRES_USER
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U $POSTGRES_USER
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: init-scripts
+        configMap:
+          name: postgres-init-config
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi
+
+---
+# PostgreSQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: re-mem
+spec:
+  selector:
+    app: postgres
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+  clusterIP: None
+
+---
+# ReMem Backend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: re-mem
+  namespace: re-mem
+  labels:
+    app: re-mem
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: re-mem
+  template:
+    metadata:
+      labels:
+        app: re-mem
+    spec:
+      serviceAccountName: default
+      containers:
+      - name: re-mem
+        image: re-mem:latest
+        imagePullPolicy: Never  # For local development
+        ports:
+        - containerPort: 3000
+          name: http
+        env:
+        - name: DATABASE_URL
+          value: postgres://re_mem:secure_password_change_me@postgres:5432/re_mem
+        - name: RUST_LOG
+          value: info
+        - name: SERVER_PORT
+          value: "3000"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 2
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
+---
+# ReMem Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: re-mem-svc
+  namespace: re-mem
+spec:
+  type: LoadBalancer
+  selector:
+    app: re-mem
+  ports:
+  - name: http
+    port: 3000
+    targetPort: 3000
+    protocol: TCP
+
+---
+# Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: re-mem-hpa
+  namespace: re-mem
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: re-mem
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
