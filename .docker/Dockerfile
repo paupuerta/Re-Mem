@@ -1,6 +1,6 @@
 # Multi-stage build for ReMem
 
-FROM rust:1.70 as builder
+FROM rust:1.93 AS builder 
 
 WORKDIR /app
 

@@ -27,14 +27,13 @@ pub fn create_router(app_services: AppServices) -> Router {
         
         // User routes
         .route("/users", post(create_user))
-        .route("/users/:user_id", get(get_user))
+        .route("/users/{user_id}", get(get_user))
         
         // Card routes
-        .route("/users/:user_id/cards", post(create_card))
-        .route("/users/:user_id/cards", get(get_user_cards))
+        .route("/users/{user_id}/cards", post(create_card).get(get_user_cards))
         
         // Review routes
-        .route("/users/:user_id/cards/:card_id/reviews", post(submit_review))
+        .route("/users/{user_id}/cards/{card_id}/reviews", post(submit_review))
         
         // Middleware
         .with_state(app_services)

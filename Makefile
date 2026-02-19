@@ -15,6 +15,7 @@ help:
 	@echo "  clean            - Clean build artifacts"
 	@echo "  docker-build     - Build Docker image"
 	@echo "  docker-up        - Start Docker Compose services"
+	@echo "  docker-up-build  - Build backend and start Docker Compose services"
 	@echo "  docker-down      - Stop Docker Compose services"
 	@echo "  db-create        - Create database"
 	@echo "  db-migrate       - Run database migrations"
@@ -52,6 +53,13 @@ clean:
 
 docker-build:
 	docker build -t re-mem:latest -f .docker/Dockerfile .
+
+docker-up-build:
+	docker-compose up -d --build backend
+	@echo "? Docker services started"
+	@echo "  API: http://localhost:3000"
+	@echo "  pgAdmin: http://localhost:5050"
+	@echo "  Database: postgres://re_mem:password@localhost:5432/re_mem"
 
 docker-up:
 	docker-compose up -d

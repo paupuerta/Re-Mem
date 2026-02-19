@@ -10,9 +10,9 @@ description = "Language learning application backend using FSRS and AI-based ans
 tokio = { version = "1.35", features = ["full"] }
 
 # Web framework
-axum = "0.7"
-tower = "0.4"
-tower-http = { version = "0.5", features = ["trace", "cors"] }
+axum = "0.8.8"
+tower = "0.5.3"
+tower-http = { version = "0.6.8", features = ["trace", "cors"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -22,10 +22,10 @@ serde_json = "1.0"
 async-trait = "0.1"
 
 # Database
-sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono"] }
+sqlx = { version = "0.8.6", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono"] }
 
 # Spaced repetition (to be integrated in Phase 2)
-# fsrs = "0.1"
+fsrs = "5.2.0"
 
 # ID generation
 uuid = { version = "1.6", features = ["v4", "serde"] }
@@ -34,8 +34,8 @@ uuid = { version = "1.6", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 
 # Error handling
-thiserror = "1.0"
-anyhow = "1.0"
+thiserror = "2.0.18"
+anyhow = "1.0.101"
 
 # Logging and tracing
 tracing = "0.1"

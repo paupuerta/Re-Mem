@@ -10,7 +10,7 @@ impl DbConfig {
     pub fn from_env() -> Self {
         Self {
             database_url: std::env::var("DATABASE_URL")
-                .unwrap_or_else(|_| "postgres://user:password@localhost:5432/re_mem".to_string()),
+                .unwrap_or_else(|_| "postgres://re_mem:password@localhost:5432/re_mem".to_string()),
         }
     }
 }
