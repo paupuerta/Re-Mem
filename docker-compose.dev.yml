@@ -1,0 +1,27 @@
+# Development override - use with: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: .docker/Dockerfile.dev
+    volumes:
+      - ./src:/app/src
+      - ./Cargo.toml:/app/Cargo.toml
+      - ./Cargo.lock:/app/Cargo.lock
+      - cargo-cache:/usr/local/cargo/registry
+      - target-cache:/app/target
+    environment:
+      DATABASE_URL: postgres://re_mem:password@postgres:5432/re_mem
+      RUST_LOG: debug
+      SERVER_PORT: 3000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  cargo-cache:
+  target-cache:

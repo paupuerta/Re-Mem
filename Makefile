@@ -17,6 +17,9 @@ help:
 	@echo "  docker-up        - Start Docker Compose services"
 	@echo "  docker-up-build  - Build backend and start Docker Compose services"
 	@echo "  docker-down      - Stop Docker Compose services"
+	@echo "  dev              - Start dev environment with hot-reload"
+	@echo "  dev-down         - Stop dev environment"
+	@echo "  dev-logs         - Follow dev backend logs"
 	@echo "  db-create        - Create database"
 	@echo "  db-migrate       - Run database migrations"
 	@echo "  db-reset         - Reset database (dev only)"
@@ -70,6 +73,19 @@ docker-up:
 
 docker-down:
 	docker-compose down
+
+dev:
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build backend
+	@echo "  Dev server starting with hot-reload"
+	@echo "  API: http://localhost:3000"
+	@echo "  pgAdmin: http://localhost:5050"
+	@echo "  Logs: make dev-logs"
+
+dev-down:
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml down
+
+dev-logs:
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml logs -f backend
 
 docker-logs:
 	docker-compose logs -f
