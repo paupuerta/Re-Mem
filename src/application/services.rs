@@ -61,6 +61,7 @@ impl CardService {
             user_id: card.user_id,
             question: card.question,
             answer: card.answer,
+            fsrs_state: card.fsrs_state,
         })
     }
 
@@ -74,6 +75,7 @@ impl CardService {
                 user_id: card.user_id,
                 question: card.question,
                 answer: card.answer,
+                fsrs_state: card.fsrs_state,
             })
             .collect())
     }
@@ -93,7 +95,7 @@ impl ReviewService {
         &self,
         card_id: Uuid,
         user_id: Uuid,
-        req: ReviewCardRequest,
+        req: LegacyReviewCardRequest,
     ) -> AppResult<ReviewDto> {
         let review = Review::new(card_id, user_id, req.grade);
         let review_id = self.review_repo.create(&review).await?;

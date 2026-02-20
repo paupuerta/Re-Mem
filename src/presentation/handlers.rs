@@ -63,7 +63,7 @@ pub async fn get_user_cards(
 pub async fn submit_review(
     Path((user_id, card_id)): Path<(Uuid, Uuid)>,
     State(services): State<AppServices>,
-    Json(req): Json<ReviewCardRequest>,
+    Json(req): Json<LegacyReviewCardRequest>,
 ) -> Response {
     match services
         .review_service
@@ -73,4 +73,46 @@ pub async fn submit_review(
         Ok(review) => (StatusCode::CREATED, Json(review)).into_response(),
         Err(err) => err.into_response(),
     }
+}
+
+/// Submit intelligent review with AI validation (API v1)
+/// POST /api/v1/reviews
+/// Body: { "card_id": "uuid", "user_id": "uuid", "user_answer": "string" }
+pub async fn submit_intelligent_review(
+    State(services): State<AppServices>,
+    Json(req): Json<SubmitReviewRequest>,
+) -> Response {
+    match services
+        .review_card_use_case
+        .execute(req.card_id, req.user_id, req.user_answer)
+        .await
+    {
+        Ok(result) => {
+            let response = ReviewResponseDto {
+                card_id: result.card_id,
+                ai_score: result.ai_score,
+                fsrs_rating: result.fsrs_rating,
+                validation_method: result.validation_method.as_str().to_string(),
+                next_review_in_days: result.next_review_in_days,
+            };
+            (StatusCode::CREATED, Json(response)).into_response()
+        }
+        Err(err) => {
+            tracing::error!("Review failed: {:?}", err);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": format!("Review failed: {}", err)
+                }))
+            ).into_response()
+        }
+    }
+}
+
+/// Submit review request for API v1
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SubmitReviewRequest {
+    pub card_id: Uuid,
+    pub user_id: Uuid,
+    pub user_answer: String,
 }

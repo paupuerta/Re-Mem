@@ -11,5 +11,7 @@
 
 pub mod database;
 pub mod repositories;
+pub mod ai_validator;
 
 pub use repositories::*;
+pub use ai_validator::*;

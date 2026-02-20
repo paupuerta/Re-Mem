@@ -47,6 +47,10 @@ dotenv = "0.15"
 # HTTP utilities
 http = "1.0"
 
+# OpenAI client
+async-openai = "0.24"
+reqwest = { version = "0.12", features = ["json"] }
+
 [dev-dependencies]
 # Testing
 tokio-test = "0.4"

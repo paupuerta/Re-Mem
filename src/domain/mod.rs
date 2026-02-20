@@ -17,7 +17,9 @@
 pub mod entities;
 pub mod repositories;
 pub mod value_objects;
+pub mod ports;
 
 pub use entities::*;
 pub use repositories::*;
 pub use value_objects::*;
+pub use ports::*;
