@@ -1,6 +1,6 @@
+use crate::domain::entities::FsrsState;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::domain::entities::FsrsState;
 
 /// Create User DTO
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,5 +1,5 @@
-use async_trait::async_trait;
 use anyhow::Result;
+use async_trait::async_trait;
 
 /// AI Validator trait - defines the interface for AI-based answer validation
 #[async_trait]

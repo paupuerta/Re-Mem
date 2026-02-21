@@ -1,10 +1,10 @@
 //! ReMem - Language Learning Backend
-//! 
+//!
 //! A Rust backend for a language-learning MVP using FSRS (Free Spaced Repetition Scheduler)
 //! and AI-based answer checking with Hexagonal Architecture.
-//! 
+//!
 //! # Architecture
-//! 
+//!
 //! The project follows Hexagonal Architecture (Ports & Adapters) with the following layers:
 //! - **domain**: Core business logic and entities
 //! - **application**: Use cases and application services

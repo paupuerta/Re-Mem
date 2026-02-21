@@ -11,8 +11,8 @@ use crate::application::{
     services::{CardService, ReviewService, UserService},
     use_cases::ReviewCardUseCase,
 };
-use crate::domain::repositories::{CardRepository, ReviewLogRepository};
 use crate::domain::ports::AIValidator;
+use crate::domain::repositories::{CardRepository, ReviewLogRepository};
 
 /// Container for application services
 #[derive(Clone)]
@@ -57,20 +57,21 @@ pub fn create_router(app_services: AppServices) -> Router {
     Router::new()
         // Health check
         .route("/health", get(health_check))
-        
         // User routes
         .route("/users", post(create_user))
         .route("/users/:user_id", get(get_user))
-        
         // Card routes
-        .route("/users/:user_id/cards", post(create_card).get(get_user_cards))
-        
+        .route(
+            "/users/:user_id/cards",
+            post(create_card).get(get_user_cards),
+        )
         // Review routes (legacy)
-        .route("/users/:user_id/cards/:card_id/reviews", post(submit_review))
-        
+        .route(
+            "/users/:user_id/cards/:card_id/reviews",
+            post(submit_review),
+        )
         // API v1 routes (new intelligent review)
         .route("/api/v1/reviews", post(submit_intelligent_review))
-        
         // Middleware
         .with_state(app_services)
         .layer(TraceLayer::new_for_http())

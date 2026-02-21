@@ -27,7 +27,7 @@ pub enum AppError {
 
     #[error("Database error: {0}")]
     DatabaseError(#[from] sqlx::Error),
-    
+
     #[error("Serialization error: {0}")]
     SerializationError(#[from] serde_json::Error),
 
@@ -56,9 +56,10 @@ impl AppError {
             AppError::Conflict(_) => StatusCode::CONFLICT,
             AppError::AuthenticationError(_) => StatusCode::UNAUTHORIZED,
             AppError::AuthorizationError(_) => StatusCode::FORBIDDEN,
-            AppError::DatabaseError(_) | AppError::InternalError(_) | AppError::ExternalApiError(_) | AppError::SerializationError(_) => {
-                StatusCode::INTERNAL_SERVER_ERROR
-            }
+            AppError::DatabaseError(_)
+            | AppError::InternalError(_)
+            | AppError::ExternalApiError(_)
+            | AppError::SerializationError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 

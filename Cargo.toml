@@ -62,6 +62,7 @@ path = "src/main.rs"
 
 [profile.dev]
 opt-level = 1
+incremental = true
 
 [profile.release]
 opt-level = 3

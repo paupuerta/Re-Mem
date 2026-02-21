@@ -26,10 +26,7 @@ pub async fn create_user(
 }
 
 /// Get user handler
-pub async fn get_user(
-    Path(user_id): Path<Uuid>,
-    State(services): State<AppServices>,
-) -> Response {
+pub async fn get_user(Path(user_id): Path<Uuid>, State(services): State<AppServices>) -> Response {
     match services.user_service.get_user(user_id).await {
         Ok(user) => Json(user).into_response(),
         Err(err) => err.into_response(),
@@ -103,8 +100,9 @@ pub async fn submit_intelligent_review(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({
                     "error": format!("Review failed: {}", err)
-                }))
-            ).into_response()
+                })),
+            )
+                .into_response()
         }
     }
 }

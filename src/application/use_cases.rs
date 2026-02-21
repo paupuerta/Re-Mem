@@ -1,18 +1,18 @@
 //! Use cases - High-level application workflows
-//! 
+//!
 //! Each use case represents a single user action or interaction
 
+use anyhow::{Context, Result};
+use chrono::Utc;
 use std::sync::Arc;
 use uuid::Uuid;
-use chrono::Utc;
-use anyhow::{Result, Context};
 
 use crate::domain::{
-    entities::{ReviewLog, FsrsState, CardState},
-    repositories::{CardRepository, ReviewLogRepository},
+    entities::{CardState, FsrsState, ReviewLog},
     ports::{AIValidator, ValidationMethod},
+    repositories::{CardRepository, ReviewLogRepository},
 };
-use crate::shared::event_bus::{EventBus, DomainEvent};
+use crate::shared::event_bus::{DomainEvent, EventBus};
 
 pub struct CreateUserUseCase;
 pub struct GetUserUseCase;
@@ -77,9 +77,10 @@ impl<R: CardRepository, L: ReviewLogRepository, V: AIValidator> ReviewCardUseCas
             card_id,
             user_id,
             user_answer.clone(),
-            Some(validation.score),
-            fsrs_rating,
+            card.answer.clone(),
+            validation.score,
             validation.method.as_str().to_string(),
+            fsrs_rating,
         );
         self.review_log_repository.create(&review_log).await?;
 
@@ -127,7 +128,7 @@ fn score_to_fsrs_rating(score: f32) -> i32 {
 fn update_fsrs_state(current: &FsrsState, rating: i32) -> FsrsState {
     // Simplified FSRS implementation
     // Based on the FSRS algorithm principles
-    
+
     let mut next = FsrsState {
         stability: current.stability,
         difficulty: current.difficulty,
@@ -157,7 +158,7 @@ fn update_fsrs_state(current: &FsrsState, rating: i32) -> FsrsState {
         }
         2 => {
             // Hard - slightly increase interval
-            next.stability = next.stability * 1.2;
+            next.stability *= 1.2;
             next.difficulty = (next.difficulty + 0.15).min(10.0);
             next.scheduled_days = ((next.stability * 1.2) as i32).max(1);
             next.state = if next.reps <= 1 {
@@ -168,8 +169,8 @@ fn update_fsrs_state(current: &FsrsState, rating: i32) -> FsrsState {
         }
         3 => {
             // Good - normal progression
-            next.stability = next.stability * 2.5;
-            next.difficulty = next.difficulty; // unchanged
+            next.stability *= 2.5;
+            // difficulty unchanged
             next.scheduled_days = ((next.stability * 2.5) as i32).max(1);
             next.state = if next.reps <= 1 {
                 CardState::Learning
@@ -179,14 +180,14 @@ fn update_fsrs_state(current: &FsrsState, rating: i32) -> FsrsState {
         }
         4 => {
             // Easy - large increase
-            next.stability = next.stability * 4.0;
+            next.stability *= 4.0;
             next.difficulty = (next.difficulty - 0.15).max(1.0);
             next.scheduled_days = ((next.stability * 4.0) as i32).max(1);
             next.state = CardState::Review;
         }
         _ => {
             // Default to Good
-            next.stability = next.stability * 2.5;
+            next.stability *= 2.5;
             next.scheduled_days = ((next.stability * 2.5) as i32).max(1);
             next.state = CardState::Review;
         }
@@ -198,15 +199,15 @@ fn update_fsrs_state(current: &FsrsState, rating: i32) -> FsrsState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
-    use async_trait::async_trait;
     use crate::{
         domain::{
-            ports::{ValidationMethod, ValidationResult},
             entities::Card,
+            ports::{ValidationMethod, ValidationResult},
         },
         shared::error::AppResult,
     };
+    use async_trait::async_trait;
+    use std::sync::Arc;
 
     #[test]
     fn test_score_to_fsrs_rating() {
@@ -219,10 +220,10 @@ mod tests {
     #[test]
     fn test_update_fsrs_state_new_card() {
         let mut state = FsrsState::default();
-        
+
         // First review with Good rating
         state = update_fsrs_state(&state, 3);
-        
+
         assert_eq!(state.state, CardState::Learning);
         assert_eq!(state.reps, 1);
         assert!(state.stability > 0.0);
@@ -232,17 +233,17 @@ mod tests {
     #[test]
     fn test_update_fsrs_state_progression() {
         let mut state = FsrsState::default();
-        
+
         // First review - Good
         state = update_fsrs_state(&state, 3);
         assert_eq!(state.state, CardState::Learning);
         assert_eq!(state.reps, 1);
-        
+
         // Second review - Good
         state = update_fsrs_state(&state, 3);
         assert_eq!(state.state, CardState::Review);
         assert_eq!(state.reps, 2);
-        
+
         // Third review - Easy
         let prev_stability = state.stability;
         state = update_fsrs_state(&state, 4);
@@ -252,12 +253,12 @@ mod tests {
     #[test]
     fn test_update_fsrs_state_lapses() {
         let mut state = FsrsState::default();
-        
+
         // Build up some progress
         state = update_fsrs_state(&state, 3);
         state = update_fsrs_state(&state, 3);
         assert_eq!(state.state, CardState::Review);
-        
+
         // Fail the card
         state = update_fsrs_state(&state, 1);
         assert_eq!(state.state, CardState::Relearning);
@@ -316,7 +317,12 @@ mod tests {
 
     #[async_trait]
     impl AIValidator for MockAIValidator {
-        async fn validate(&self, _expected: &str, _actual: &str, _question: &str) -> anyhow::Result<ValidationResult> {
+        async fn validate(
+            &self,
+            _expected: &str,
+            _actual: &str,
+            _question: &str,
+        ) -> anyhow::Result<ValidationResult> {
             Ok(ValidationResult {
                 score: self.score,
                 method: self.method.clone(),
@@ -328,7 +334,7 @@ mod tests {
     async fn test_review_card_use_case_success() {
         let card_id = Uuid::new_v4();
         let user_id = Uuid::new_v4();
-        
+
         let card = Card {
             id: card_id,
             user_id,
@@ -347,19 +353,17 @@ mod tests {
         });
         let event_bus = Arc::new(crate::shared::event_bus::EventBus::new());
 
-        let use_case = ReviewCardUseCase::new(
-            card_repo,
-            log_repo,
-            validator,
-            event_bus,
-        );
+        let use_case = ReviewCardUseCase::new(card_repo, log_repo, validator, event_bus);
 
         let result = use_case.execute(card_id, user_id, "4".to_string()).await;
-        
+
         assert!(result.is_ok());
         let review_result = result.unwrap();
         assert_eq!(review_result.ai_score, 0.95);
-        assert!(matches!(review_result.validation_method, ValidationMethod::Exact));
+        assert!(matches!(
+            review_result.validation_method,
+            ValidationMethod::Exact
+        ));
         assert_eq!(review_result.fsrs_rating, 4); // Easy
     }
 
@@ -376,31 +380,28 @@ mod tests {
         });
         let event_bus = Arc::new(crate::shared::event_bus::EventBus::new());
 
-        let use_case = ReviewCardUseCase::new(
-            card_repo,
-            log_repo,
-            validator,
-            event_bus,
-        );
+        let use_case = ReviewCardUseCase::new(card_repo, log_repo, validator, event_bus);
 
-        let result = use_case.execute(card_id, user_id, "answer".to_string()).await;
-        
+        let result = use_case
+            .execute(card_id, user_id, "answer".to_string())
+            .await;
+
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn test_review_card_different_scores() {
         let test_cases = vec![
-            (0.95, 4, ValidationMethod::Exact),      // Easy
-            (0.75, 3, ValidationMethod::Embedding),  // Good
-            (0.55, 2, ValidationMethod::Llm),        // Hard
-            (0.30, 1, ValidationMethod::Llm),        // Again
+            (0.95, 4, ValidationMethod::Exact),     // Easy
+            (0.75, 3, ValidationMethod::Embedding), // Good
+            (0.55, 2, ValidationMethod::Llm),       // Hard
+            (0.30, 1, ValidationMethod::Llm),       // Again
         ];
 
         for (score, expected_rating, method) in test_cases {
             let card_id = Uuid::new_v4();
             let user_id = Uuid::new_v4();
-            
+
             let card = Card {
                 id: card_id,
                 user_id,
@@ -413,18 +414,18 @@ mod tests {
 
             let card_repo = Arc::new(MockCardRepository { card: Some(card) });
             let log_repo = Arc::new(MockReviewLogRepository);
-            let validator = Arc::new(MockAIValidator { score, method: method.clone() });
+            let validator = Arc::new(MockAIValidator {
+                score,
+                method: method.clone(),
+            });
             let event_bus = Arc::new(crate::shared::event_bus::EventBus::new());
 
-            let use_case = ReviewCardUseCase::new(
-                card_repo,
-                log_repo,
-                validator,
-                event_bus,
-            );
+            let use_case = ReviewCardUseCase::new(card_repo, log_repo, validator, event_bus);
 
-            let result = use_case.execute(card_id, user_id, "test answer".to_string()).await;
-            
+            let result = use_case
+                .execute(card_id, user_id, "test answer".to_string())
+                .await;
+
             assert!(result.is_ok());
             let review_result = result.unwrap();
             assert_eq!(review_result.fsrs_rating, expected_rating);

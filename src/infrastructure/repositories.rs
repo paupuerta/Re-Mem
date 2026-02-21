@@ -1,6 +1,6 @@
 use crate::domain::{
-    entities::{Card, Review, ReviewLog, User, FsrsState},
-    repositories::{CardRepository, ReviewRepository, ReviewLogRepository, UserRepository},
+    entities::{Card, FsrsState, Review, ReviewLog, User},
+    repositories::{CardRepository, ReviewLogRepository, ReviewRepository, UserRepository},
 };
 use crate::AppResult;
 use sqlx::PgPool;
@@ -34,31 +34,33 @@ impl UserRepository for PgUserRepository {
     }
 
     async fn find_by_id(&self, id: Uuid) -> AppResult<Option<User>> {
-        let user = sqlx::query_as::<_, User>("SELECT id, email, name, created_at, updated_at FROM users WHERE id = $1")
-            .bind(id)
-            .fetch_optional(&self.pool)
-            .await?;
+        let user = sqlx::query_as::<_, User>(
+            "SELECT id, email, name, created_at, updated_at FROM users WHERE id = $1",
+        )
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await?;
         Ok(user)
     }
 
     async fn find_by_email(&self, email: &str) -> AppResult<Option<User>> {
-        let user = sqlx::query_as::<_, User>("SELECT id, email, name, created_at, updated_at FROM users WHERE email = $1")
-            .bind(email)
-            .fetch_optional(&self.pool)
-            .await?;
+        let user = sqlx::query_as::<_, User>(
+            "SELECT id, email, name, created_at, updated_at FROM users WHERE email = $1",
+        )
+        .bind(email)
+        .fetch_optional(&self.pool)
+        .await?;
         Ok(user)
     }
 
     async fn update(&self, user: &User) -> AppResult<()> {
-        sqlx::query(
-            "UPDATE users SET email = $1, name = $2, updated_at = $3 WHERE id = $4",
-        )
-        .bind(&user.email)
-        .bind(&user.name)
-        .bind(user.updated_at)
-        .bind(user.id)
-        .execute(&self.pool)
-        .await?;
+        sqlx::query("UPDATE users SET email = $1, name = $2, updated_at = $3 WHERE id = $4")
+            .bind(&user.email)
+            .bind(&user.name)
+            .bind(user.updated_at)
+            .bind(user.id)
+            .execute(&self.pool)
+            .await?;
         Ok(())
     }
 
@@ -86,7 +88,7 @@ impl PgCardRepository {
 impl CardRepository for PgCardRepository {
     async fn create(&self, card: &Card) -> AppResult<Uuid> {
         let fsrs_json = serde_json::to_value(&card.fsrs_state)?;
-        
+
         sqlx::query_scalar(
             "INSERT INTO cards (id, user_id, question, answer, fsrs_state, created_at, updated_at) 
              VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
@@ -104,9 +106,20 @@ impl CardRepository for PgCardRepository {
     }
 
     async fn find_by_id(&self, id: Uuid) -> AppResult<Option<Card>> {
-        let row = sqlx::query_as::<_, (Uuid, Uuid, String, String, serde_json::Value, chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>(
+        let row = sqlx::query_as::<
+            _,
+            (
+                Uuid,
+                Uuid,
+                String,
+                String,
+                serde_json::Value,
+                chrono::DateTime<chrono::Utc>,
+                chrono::DateTime<chrono::Utc>,
+            ),
+        >(
             "SELECT id, user_id, question, answer, fsrs_state, created_at, updated_at 
-             FROM cards WHERE id = $1"
+             FROM cards WHERE id = $1",
         )
         .bind(id)
         .fetch_optional(&self.pool)
@@ -130,9 +143,20 @@ impl CardRepository for PgCardRepository {
     }
 
     async fn find_by_user(&self, user_id: Uuid) -> AppResult<Vec<Card>> {
-        let rows = sqlx::query_as::<_, (Uuid, Uuid, String, String, serde_json::Value, chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>(
+        let rows = sqlx::query_as::<
+            _,
+            (
+                Uuid,
+                Uuid,
+                String,
+                String,
+                serde_json::Value,
+                chrono::DateTime<chrono::Utc>,
+                chrono::DateTime<chrono::Utc>,
+            ),
+        >(
             "SELECT id, user_id, question, answer, fsrs_state, created_at, updated_at 
-             FROM cards WHERE user_id = $1"
+             FROM cards WHERE user_id = $1",
         )
         .bind(user_id)
         .fetch_all(&self.pool)
@@ -140,18 +164,20 @@ impl CardRepository for PgCardRepository {
 
         let cards = rows
             .into_iter()
-            .filter_map(|(id, user_id, question, answer, fsrs_state_json, created_at, updated_at)| {
-                let fsrs_state: FsrsState = serde_json::from_value(fsrs_state_json).ok()?;
-                Some(Card {
-                    id,
-                    user_id,
-                    question,
-                    answer,
-                    fsrs_state,
-                    created_at,
-                    updated_at,
-                })
-            })
+            .filter_map(
+                |(id, user_id, question, answer, fsrs_state_json, created_at, updated_at)| {
+                    let fsrs_state: FsrsState = serde_json::from_value(fsrs_state_json).ok()?;
+                    Some(Card {
+                        id,
+                        user_id,
+                        question,
+                        answer,
+                        fsrs_state,
+                        created_at,
+                        updated_at,
+                    })
+                },
+            )
             .collect();
 
         Ok(cards)
@@ -159,7 +185,7 @@ impl CardRepository for PgCardRepository {
 
     async fn update(&self, card: &Card) -> AppResult<()> {
         let fsrs_json = serde_json::to_value(&card.fsrs_state)?;
-        
+
         sqlx::query(
             "UPDATE cards SET question = $1, answer = $2, fsrs_state = $3, updated_at = $4 WHERE id = $5",
         )
@@ -210,18 +236,22 @@ impl ReviewRepository for PgReviewRepository {
     }
 
     async fn find_by_card(&self, card_id: Uuid) -> AppResult<Vec<Review>> {
-        let reviews = sqlx::query_as::<_, Review>("SELECT id, card_id, user_id, grade, created_at FROM reviews WHERE card_id = $1")
-            .bind(card_id)
-            .fetch_all(&self.pool)
-            .await?;
+        let reviews = sqlx::query_as::<_, Review>(
+            "SELECT id, card_id, user_id, grade, created_at FROM reviews WHERE card_id = $1",
+        )
+        .bind(card_id)
+        .fetch_all(&self.pool)
+        .await?;
         Ok(reviews)
     }
 
     async fn find_by_user(&self, user_id: Uuid) -> AppResult<Vec<Review>> {
-        let reviews = sqlx::query_as::<_, Review>("SELECT id, card_id, user_id, grade, created_at FROM reviews WHERE user_id = $1")
-            .bind(user_id)
-            .fetch_all(&self.pool)
-            .await?;
+        let reviews = sqlx::query_as::<_, Review>(
+            "SELECT id, card_id, user_id, grade, created_at FROM reviews WHERE user_id = $1",
+        )
+        .bind(user_id)
+        .fetch_all(&self.pool)
+        .await?;
         Ok(reviews)
     }
 }

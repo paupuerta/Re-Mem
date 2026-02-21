@@ -25,16 +25,24 @@ impl User {
     }
 }
 
-/// FSRS State - represents the spaced repetition state of a card
+/// FSRS (Free Spaced Repetition Scheduler) state for a card
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FsrsState {
+    /// Stability - represents how well the memory is retained
     pub stability: f32,
+    /// Difficulty - intrinsic difficulty of the card
     pub difficulty: f32,
+    /// Days elapsed since last review
     pub elapsed_days: i32,
+    /// Days scheduled until next review
     pub scheduled_days: i32,
+    /// Number of times the card has been reviewed
     pub reps: i32,
+    /// Number of times the card was forgotten (lapsed)
     pub lapses: i32,
+    /// Current state of the card in the learning process
     pub state: CardState,
+    /// Timestamp of last review
     pub last_review: Option<DateTime<Utc>>,
 }
 
@@ -90,16 +98,17 @@ impl Card {
     }
 }
 
-/// Review Log - represents a single review attempt with AI validation
+/// Review Log - tracks AI validation results for analytics
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct ReviewLog {
     pub id: Uuid,
     pub card_id: Uuid,
     pub user_id: Uuid,
     pub user_answer: String,
-    pub ai_score: Option<f32>,
+    pub expected_answer: String,
+    pub ai_score: f32,
+    pub validation_method: String,
     pub fsrs_rating: i32,
-    pub validation_method: String, // "exact", "embedding", "llm"
     pub created_at: DateTime<Utc>,
 }
 
@@ -108,18 +117,20 @@ impl ReviewLog {
         card_id: Uuid,
         user_id: Uuid,
         user_answer: String,
-        ai_score: Option<f32>,
-        fsrs_rating: i32,
+        expected_answer: String,
+        ai_score: f32,
         validation_method: String,
+        fsrs_rating: i32,
     ) -> Self {
         Self {
             id: Uuid::new_v4(),
             card_id,
             user_id,
             user_answer,
+            expected_answer,
             ai_score,
-            fsrs_rating,
             validation_method,
+            fsrs_rating,
             created_at: Utc::now(),
         }
     }

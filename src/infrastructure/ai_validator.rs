@@ -1,17 +1,15 @@
-use async_trait::async_trait;
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use async_openai::{
-    Client,
     types::{
+        ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
+        ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
         CreateEmbeddingRequestArgs,
-        CreateChatCompletionRequestArgs,
-        ChatCompletionRequestMessage,
-        ChatCompletionRequestUserMessageArgs,
-        ChatCompletionRequestSystemMessageArgs,
     },
+    Client,
 };
+use async_trait::async_trait;
 
-use crate::domain::ports::{AIValidator, ValidationResult, ValidationMethod};
+use crate::domain::ports::{AIValidator, ValidationMethod, ValidationResult};
 
 /// OpenAI-based AI validator with cascading validation strategy
 pub struct OpenAIValidator {
@@ -49,11 +47,7 @@ impl OpenAIValidator {
     }
 
     /// Calculate similarity using OpenAI embeddings
-    async fn check_embedding_similarity(
-        &self,
-        expected: &str,
-        user_answer: &str,
-    ) -> Result<f32> {
+    async fn check_embedding_similarity(&self, expected: &str, user_answer: &str) -> Result<f32> {
         let request = CreateEmbeddingRequestArgs::default()
             .model(&self.embedding_model)
             .input(vec![expected, user_answer])
@@ -101,12 +95,12 @@ Respond with ONLY a number between 0.0 and 1.0, nothing else."#;
                 ChatCompletionRequestMessage::System(
                     ChatCompletionRequestSystemMessageArgs::default()
                         .content(system_prompt)
-                        .build()?
+                        .build()?,
                 ),
                 ChatCompletionRequestMessage::User(
                     ChatCompletionRequestUserMessageArgs::default()
                         .content(user_prompt)
-                        .build()?
+                        .build()?,
                 ),
             ])
             .temperature(0.0)
@@ -143,7 +137,10 @@ impl AIValidator for OpenAIValidator {
         }
 
         // Strategy 2: Embedding similarity
-        match self.check_embedding_similarity(expected_answer, user_answer).await {
+        match self
+            .check_embedding_similarity(expected_answer, user_answer)
+            .await
+        {
             Ok(score) if score >= self.embedding_threshold => {
                 return Ok(ValidationResult {
                     score,
@@ -152,7 +149,10 @@ impl AIValidator for OpenAIValidator {
             }
             Ok(score) if score >= 0.6 => {
                 // Borderline case - use LLM for final decision
-                tracing::info!("Embedding score borderline ({}), falling back to LLM", score);
+                tracing::info!(
+                    "Embedding score borderline ({}), falling back to LLM",
+                    score
+                );
             }
             Err(e) => {
                 tracing::warn!("Embedding check failed: {}, falling back to LLM", e);

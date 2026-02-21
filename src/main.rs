@@ -2,15 +2,16 @@ use re_mem::{
     application::services::{CardService, ReviewService, UserService},
     application::use_cases::ReviewCardUseCase,
     infrastructure::{
-        database::{init_db_pool, DbConfig},
-        repositories::{PgCardRepository, PgReviewRepository, PgReviewLogRepository, PgUserRepository},
         ai_validator::OpenAIValidator,
+        database::{init_db_pool, DbConfig},
+        repositories::{
+            PgCardRepository, PgReviewLogRepository, PgReviewRepository, PgUserRepository,
+        },
     },
     presentation::router::{create_router, AppServices},
     shared::event_bus::EventBus,
 };
 use std::sync::Arc;
-use tracing_subscriber;
 
 #[tokio::main]
 async fn main() {
@@ -48,11 +49,10 @@ async fn main() {
     let review_service = Arc::new(ReviewService::new(review_repo));
 
     // Initialize AI Validator
-    let openai_api_key = std::env::var("OPENAI_API_KEY")
-        .unwrap_or_else(|_| {
-            tracing::warn!("OPENAI_API_KEY not set, using placeholder");
-            "sk-placeholder".to_string()
-        });
+    let openai_api_key = std::env::var("OPENAI_API_KEY").unwrap_or_else(|_| {
+        tracing::warn!("OPENAI_API_KEY not set, using placeholder");
+        "sk-placeholder".to_string()
+    });
     let ai_validator = Arc::new(OpenAIValidator::new(openai_api_key));
 
     // Initialize Event Bus
@@ -83,7 +83,5 @@ async fn main() {
 
     tracing::info!("Server starting on 0.0.0.0:3000");
 
-    axum::serve(listener, app)
-        .await
-        .expect("Server failed");
+    axum::serve(listener, app).await.expect("Server failed");
 }

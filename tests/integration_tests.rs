@@ -1,9 +1,6 @@
 //! Integration tests for ReMem
 
-use re_mem::{
-    domain::entities::{Card, Review, User},
-    AppError, AppResult,
-};
+use re_mem::domain::entities::{Card, Review, User};
 
 #[test]
 fn test_user_creation() {
@@ -16,11 +13,7 @@ fn test_user_creation() {
 #[test]
 fn test_card_creation() {
     let user_id = uuid::Uuid::new_v4();
-    let card = Card::new(
-        user_id,
-        "What is 2+2?".to_string(),
-        "4".to_string(),
-    );
+    let card = Card::new(user_id, "What is 2+2?".to_string(), "4".to_string());
     assert_eq!(card.question, "What is 2+2?");
     assert_eq!(card.answer, "4");
     assert_eq!(card.user_id, user_id);
