@@ -2,13 +2,13 @@ use re_mem::{
     application::services::{CardService, ReviewService, UserService},
     application::use_cases::ReviewCardUseCase,
     infrastructure::{
-        ai_validator::OpenAIValidator,
+        ai_validator::{FallbackValidator, OpenAIValidator},
         database::{init_db_pool, DbConfig},
         repositories::{
             PgCardRepository, PgReviewLogRepository, PgReviewRepository, PgUserRepository,
         },
     },
-    presentation::router::{create_router, AppServices},
+    presentation::router::{create_router, AppServices, ReviewCardUseCaseTrait},
     shared::event_bus::EventBus,
 };
 use std::sync::Arc;
@@ -48,23 +48,35 @@ async fn main() {
     let card_service = Arc::new(CardService::new(card_repo.clone()));
     let review_service = Arc::new(ReviewService::new(review_repo));
 
-    // Initialize AI Validator
-    let openai_api_key = std::env::var("OPENAI_API_KEY").unwrap_or_else(|_| {
-        tracing::warn!("OPENAI_API_KEY not set, using placeholder");
-        "sk-placeholder".to_string()
-    });
-    let ai_validator = Arc::new(OpenAIValidator::new(openai_api_key));
-
     // Initialize Event Bus
     let event_bus = Arc::new(EventBus::new());
 
-    // Initialize Review Card Use Case (new intelligent review)
-    let review_card_use_case = Arc::new(ReviewCardUseCase::new(
-        card_repo,
-        review_log_repo,
-        ai_validator,
-        event_bus,
-    ));
+    // Initialize AI Validator and Review Card Use Case
+    let review_card_use_case: Arc<dyn ReviewCardUseCaseTrait> =
+        match std::env::var("OPENAI_API_KEY") {
+            Ok(api_key) => {
+                tracing::info!("Using OpenAI validator");
+                let validator = Arc::new(OpenAIValidator::new(api_key));
+                Arc::new(ReviewCardUseCase::new(
+                    card_repo,
+                    review_log_repo,
+                    validator,
+                    event_bus,
+                ))
+            }
+            Err(_) => {
+                tracing::warn!(
+                    "OPENAI_API_KEY not set ? using FallbackValidator (word-overlap scoring)"
+                );
+                let validator = Arc::new(FallbackValidator);
+                Arc::new(ReviewCardUseCase::new(
+                    card_repo,
+                    review_log_repo,
+                    validator,
+                    event_bus,
+                ))
+            }
+        };
 
     let app_services = AppServices {
         user_service,

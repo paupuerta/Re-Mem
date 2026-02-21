@@ -103,6 +103,12 @@ db-reset:
 	cargo sqlx migrate run
 	@echo "? Database reset complete"
 
+db-reset-docker:
+	@echo "??  Resetting Docker database (drops postgres_data volume)..."
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml down -v
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+	@echo "? Docker database reset complete"
+
 docs:
 	cargo doc --open
 

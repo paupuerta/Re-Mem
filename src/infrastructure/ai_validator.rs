@@ -189,6 +189,53 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     dot_product / (magnitude_a * magnitude_b)
 }
 
+// ---------------------------------------------------------------------------
+// Fallback validator (no OpenAI dependency ? used when key is not configured)
+// ---------------------------------------------------------------------------
+
+/// Simple heuristic validator that works without an OpenAI API key.
+/// Uses exact match and word-overlap (Jaccard) similarity.
+/// Suitable for development / when OPENAI_API_KEY is not set.
+pub struct FallbackValidator;
+
+#[async_trait]
+impl AIValidator for FallbackValidator {
+    async fn validate(
+        &self,
+        expected_answer: &str,
+        user_answer: &str,
+        _question_context: &str,
+    ) -> Result<ValidationResult> {
+        let expected = expected_answer.trim().to_lowercase();
+        let actual = user_answer.trim().to_lowercase();
+
+        // Exact match
+        if expected == actual {
+            return Ok(ValidationResult {
+                score: 1.0,
+                method: ValidationMethod::Exact,
+            });
+        }
+
+        // Word-overlap (Jaccard)
+        let expected_words: std::collections::HashSet<&str> =
+            expected.split_whitespace().collect();
+        let actual_words: std::collections::HashSet<&str> =
+            actual.split_whitespace().collect();
+
+        let intersection = expected_words.intersection(&actual_words).count() as f32;
+        let union = expected_words.union(&actual_words).count() as f32;
+
+        let jaccard = if union > 0.0 { intersection / union } else { 0.0 };
+
+        // Scale: 0.0?0.49 ? Again/Hard, 0.5?0.89 ? Good, 0.9?1.0 ? Easy
+        Ok(ValidationResult {
+            score: jaccard,
+            method: ValidationMethod::Exact, // closest approximation
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
