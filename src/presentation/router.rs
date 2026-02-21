@@ -59,15 +59,15 @@ pub fn create_router(app_services: AppServices) -> Router {
         .route("/health", get(health_check))
         // User routes
         .route("/users", post(create_user))
-        .route("/users/:user_id", get(get_user))
+        .route("/users/{user_id}", get(get_user))
         // Card routes
         .route(
-            "/users/:user_id/cards",
+            "/users/{user_id}/cards",
             post(create_card).get(get_user_cards),
         )
         // Review routes (legacy)
         .route(
-            "/users/:user_id/cards/:card_id/reviews",
+            "/users/{user_id}/cards/{card_id}/reviews",
             post(submit_review),
         )
         // API v1 routes (new intelligent review)

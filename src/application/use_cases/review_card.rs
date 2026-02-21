@@ -1,6 +1,4 @@
-//! Use cases - High-level application workflows
-//!
-//! Each use case represents a single user action or interaction
+//! ReviewCard use case - AI-powered flashcard review with FSRS scheduling
 
 use anyhow::{Context, Result};
 use chrono::Utc;
@@ -13,11 +11,6 @@ use crate::domain::{
     repositories::{CardRepository, ReviewLogRepository},
 };
 use crate::shared::event_bus::{DomainEvent, EventBus};
-
-pub struct CreateUserUseCase;
-pub struct GetUserUseCase;
-pub struct CreateCardUseCase;
-pub struct GetUserCardsUseCase;
 
 /// Use case for reviewing a card with AI-powered validation
 pub struct ReviewCardUseCase<R: CardRepository, L: ReviewLogRepository, V: AIValidator> {
@@ -126,9 +119,6 @@ fn score_to_fsrs_rating(score: f32) -> i32 {
 
 /// Update FSRS state based on rating
 fn update_fsrs_state(current: &FsrsState, rating: i32) -> FsrsState {
-    // Simplified FSRS implementation
-    // Based on the FSRS algorithm principles
-
     let mut next = FsrsState {
         stability: current.stability,
         difficulty: current.difficulty,
@@ -146,7 +136,6 @@ fn update_fsrs_state(current: &FsrsState, rating: i32) -> FsrsState {
         next.difficulty = 5.0;
     }
 
-    // Update based on rating
     match rating {
         1 => {
             // Again - reset card to learning
@@ -247,7 +236,7 @@ mod tests {
         // Third review - Easy
         let prev_stability = state.stability;
         state = update_fsrs_state(&state, 4);
-        assert!(state.stability > prev_stability); // Stability should increase
+        assert!(state.stability > prev_stability);
     }
 
     #[test]
