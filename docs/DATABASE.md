@@ -28,6 +28,7 @@ docker-compose up postgres
 ```
 
 Access:
+
 - Host: localhost
 - Port: 5432
 - User: re_mem
@@ -53,6 +54,7 @@ CREATE TABLE users (
 ```
 
 **Fields:**
+
 - `id`: Unique identifier (UUID)
 - `email`: User email (unique)
 - `name`: User's full name
@@ -77,6 +79,7 @@ CREATE TABLE cards (
 ```
 
 **Fields:**
+
 - `id`: Unique card identifier
 - `user_id`: Owner of the card (foreign key)
 - `question`: The question/prompt
@@ -102,6 +105,7 @@ CREATE TABLE reviews (
 ```
 
 **Fields:**
+
 - `id`: Unique review identifier
 - `card_id`: Reviewed card (foreign key)
 - `user_id`: User who submitted review
@@ -109,6 +113,7 @@ CREATE TABLE reviews (
 - `created_at`: Review submission timestamp
 
 **Grade Scale (FSRS):**
+
 - 0: Again (forgot the answer)
 - 1: Hard (difficult to recall)
 - 2: Good (correct recall)
@@ -150,12 +155,14 @@ sqlx migrate add -r create_users_table
 ```
 
 This creates two files:
+
 - `<timestamp>_<name>.up.sql` - Forward migration
 - `<timestamp>_<name>.down.sql` - Rollback migration
 
 ### Up Migration Example
 
-**migrations/20260219000001_create_users_table.up.sql**
+#### migrations/20260219000001_create_users_table.up.sql
+
 ```sql
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -170,7 +177,8 @@ CREATE INDEX idx_users_email ON users(email);
 
 ### Down Migration Example
 
-**migrations/20260219000001_create_users_table.down.sql**
+#### migrations/20260219000001_create_users_table.down.sql
+
 ```sql
 DROP INDEX IF EXISTS idx_users_email;
 DROP TABLE IF EXISTS users CASCADE;
@@ -191,6 +199,7 @@ cargo sqlx database info
 ### Indexing Strategy
 
 Current indexes:
+
 1. `users.email` - Used in find_by_email queries
 2. `cards.user_id` - Used for filtering user's cards
 3. `reviews.card_id` - Used for finding reviews of a card
@@ -199,6 +208,7 @@ Current indexes:
 ### Query Optimization
 
 SQLx compilation-time verification ensures:
+
 - SQL syntax is valid
 - Column names match schema
 - Type mismatches are caught early
@@ -206,6 +216,7 @@ SQLx compilation-time verification ensures:
 ### Connection Pooling
 
 Default pool configuration:
+
 ```rust
 PgPoolOptions::new()
     .max_connections(5)  // Adjust based on load
@@ -289,6 +300,7 @@ GROUP BY usename;
 ### Slow Queries
 
 Enable logging in PostgreSQL config:
+
 ```sql
 SET log_min_duration_statement = 1000;  -- Log queries > 1 second
 ```

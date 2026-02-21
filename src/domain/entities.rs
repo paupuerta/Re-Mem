@@ -64,6 +64,7 @@ impl Default for FsrsState {
 /// Card State according to FSRS algorithm
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "card_state", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
 pub enum CardState {
     New,
     Learning,

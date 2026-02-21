@@ -162,23 +162,19 @@ impl CardRepository for PgCardRepository {
         .fetch_all(&self.pool)
         .await?;
 
-        let cards = rows
-            .into_iter()
-            .filter_map(
-                |(id, user_id, question, answer, fsrs_state_json, created_at, updated_at)| {
-                    let fsrs_state: FsrsState = serde_json::from_value(fsrs_state_json).ok()?;
-                    Some(Card {
-                        id,
-                        user_id,
-                        question,
-                        answer,
-                        fsrs_state,
-                        created_at,
-                        updated_at,
-                    })
-                },
-            )
-            .collect();
+        let mut cards = Vec::with_capacity(rows.len());
+        for (id, user_id, question, answer, fsrs_state_json, created_at, updated_at) in rows {
+            let fsrs_state: FsrsState = serde_json::from_value(fsrs_state_json)?;
+            cards.push(Card {
+                id,
+                user_id,
+                question,
+                answer,
+                fsrs_state,
+                created_at,
+                updated_at,
+            });
+        }
 
         Ok(cards)
     }
