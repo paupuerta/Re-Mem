@@ -218,15 +218,17 @@ impl AIValidator for FallbackValidator {
         }
 
         // Word-overlap (Jaccard)
-        let expected_words: std::collections::HashSet<&str> =
-            expected.split_whitespace().collect();
-        let actual_words: std::collections::HashSet<&str> =
-            actual.split_whitespace().collect();
+        let expected_words: std::collections::HashSet<&str> = expected.split_whitespace().collect();
+        let actual_words: std::collections::HashSet<&str> = actual.split_whitespace().collect();
 
         let intersection = expected_words.intersection(&actual_words).count() as f32;
         let union = expected_words.union(&actual_words).count() as f32;
 
-        let jaccard = if union > 0.0 { intersection / union } else { 0.0 };
+        let jaccard = if union > 0.0 {
+            intersection / union
+        } else {
+            0.0
+        };
 
         // Scale: 0.0?0.49 ? Again/Hard, 0.5?0.89 ? Good, 0.9?1.0 ? Easy
         Ok(ValidationResult {
