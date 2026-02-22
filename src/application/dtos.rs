@@ -50,6 +50,8 @@ pub struct DeckDto {
     pub user_id: Uuid,
     pub name: String,
     pub description: Option<String>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
 /// Review Card DTO - for submitting a review with user answer

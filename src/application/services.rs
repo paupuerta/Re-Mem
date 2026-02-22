@@ -148,6 +148,8 @@ impl DeckService {
             user_id: deck.user_id,
             name: deck.name,
             description: deck.description,
+            created_at: deck.created_at,
+            updated_at: deck.updated_at,
         })
     }
 
@@ -161,6 +163,8 @@ impl DeckService {
                 user_id: deck.user_id,
                 name: deck.name,
                 description: deck.description,
+                created_at: deck.created_at,
+                updated_at: deck.updated_at,
             })
             .collect())
     }
