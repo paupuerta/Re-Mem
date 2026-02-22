@@ -23,6 +23,7 @@ async-trait = "0.1"
 
 # Database
 sqlx = { version = "0.8.6", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono"] }
+pgvector = { version = "0.4", features = ["sqlx"] }
 
 # Spaced repetition (to be integrated in Phase 2)
 fsrs = "5.2.0"

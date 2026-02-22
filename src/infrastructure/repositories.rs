@@ -1,8 +1,9 @@
 use crate::domain::{
-    entities::{Card, FsrsState, Review, ReviewLog, User},
-    repositories::{CardRepository, ReviewLogRepository, ReviewRepository, UserRepository},
+    entities::{Card, Deck, FsrsState, Review, ReviewLog, User},
+    repositories::{CardRepository, DeckRepository, ReviewLogRepository, ReviewRepository, UserRepository},
 };
 use crate::AppResult;
+use pgvector::Vector;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -88,15 +89,18 @@ impl PgCardRepository {
 impl CardRepository for PgCardRepository {
     async fn create(&self, card: &Card) -> AppResult<Uuid> {
         let fsrs_json = serde_json::to_value(&card.fsrs_state)?;
+        let embedding_vec = card.answer_embedding.as_ref().map(|v| Vector::from(v.clone()));
 
         sqlx::query_scalar(
-            "INSERT INTO cards (id, user_id, question, answer, fsrs_state, created_at, updated_at) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+            "INSERT INTO cards (id, user_id, deck_id, question, answer, answer_embedding, fsrs_state, created_at, updated_at) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
         )
         .bind(card.id)
         .bind(card.user_id)
+        .bind(card.deck_id)
         .bind(&card.question)
         .bind(&card.answer)
+        .bind(embedding_vec)
         .bind(fsrs_json)
         .bind(card.created_at)
         .bind(card.updated_at)
@@ -111,14 +115,16 @@ impl CardRepository for PgCardRepository {
             (
                 Uuid,
                 Uuid,
+                Option<Uuid>,
                 String,
                 String,
+                Option<Vector>,
                 serde_json::Value,
                 chrono::DateTime<chrono::Utc>,
                 chrono::DateTime<chrono::Utc>,
             ),
         >(
-            "SELECT id, user_id, question, answer, fsrs_state, created_at, updated_at 
+            "SELECT id, user_id, deck_id, question, answer, answer_embedding, fsrs_state, created_at, updated_at 
              FROM cards WHERE id = $1",
         )
         .bind(id)
@@ -126,13 +132,16 @@ impl CardRepository for PgCardRepository {
         .await?;
 
         match row {
-            Some((id, user_id, question, answer, fsrs_state_json, created_at, updated_at)) => {
+            Some((id, user_id, deck_id, question, answer, embedding_vec, fsrs_state_json, created_at, updated_at)) => {
                 let fsrs_state: FsrsState = serde_json::from_value(fsrs_state_json)?;
+                let answer_embedding = embedding_vec.map(|v| v.to_vec());
                 Ok(Some(Card {
                     id,
                     user_id,
+                    deck_id,
                     question,
                     answer,
+                    answer_embedding,
                     fsrs_state,
                     created_at,
                     updated_at,
@@ -148,14 +157,16 @@ impl CardRepository for PgCardRepository {
             (
                 Uuid,
                 Uuid,
+                Option<Uuid>,
                 String,
                 String,
+                Option<Vector>,
                 serde_json::Value,
                 chrono::DateTime<chrono::Utc>,
                 chrono::DateTime<chrono::Utc>,
             ),
         >(
-            "SELECT id, user_id, question, answer, fsrs_state, created_at, updated_at 
+            "SELECT id, user_id, deck_id, question, answer, answer_embedding, fsrs_state, created_at, updated_at 
              FROM cards WHERE user_id = $1",
         )
         .bind(user_id)
@@ -163,13 +174,58 @@ impl CardRepository for PgCardRepository {
         .await?;
 
         let mut cards = Vec::with_capacity(rows.len());
-        for (id, user_id, question, answer, fsrs_state_json, created_at, updated_at) in rows {
+        for (id, user_id, deck_id, question, answer, embedding_vec, fsrs_state_json, created_at, updated_at) in rows {
             let fsrs_state: FsrsState = serde_json::from_value(fsrs_state_json)?;
+            let answer_embedding = embedding_vec.map(|v| v.to_vec());
             cards.push(Card {
                 id,
                 user_id,
+                deck_id,
                 question,
                 answer,
+                answer_embedding,
+                fsrs_state,
+                created_at,
+                updated_at,
+            });
+        }
+
+        Ok(cards)
+    }
+
+    async fn find_by_deck(&self, deck_id: Uuid) -> AppResult<Vec<Card>> {
+        let rows = sqlx::query_as::<
+            _,
+            (
+                Uuid,
+                Uuid,
+                Option<Uuid>,
+                String,
+                String,
+                Option<Vector>,
+                serde_json::Value,
+                chrono::DateTime<chrono::Utc>,
+                chrono::DateTime<chrono::Utc>,
+            ),
+        >(
+            "SELECT id, user_id, deck_id, question, answer, answer_embedding, fsrs_state, created_at, updated_at 
+             FROM cards WHERE deck_id = $1",
+        )
+        .bind(deck_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut cards = Vec::with_capacity(rows.len());
+        for (id, user_id, deck_id, question, answer, embedding_vec, fsrs_state_json, created_at, updated_at) in rows {
+            let fsrs_state: FsrsState = serde_json::from_value(fsrs_state_json)?;
+            let answer_embedding = embedding_vec.map(|v| v.to_vec());
+            cards.push(Card {
+                id,
+                user_id,
+                deck_id,
+                question,
+                answer,
+                answer_embedding,
                 fsrs_state,
                 created_at,
                 updated_at,
@@ -303,5 +359,78 @@ impl ReviewLogRepository for PgReviewLogRepository {
         .fetch_all(&self.pool)
         .await?;
         Ok(logs)
+    }
+}
+
+/// PostgreSQL Deck Repository implementation
+pub struct PgDeckRepository {
+    pool: PgPool,
+}
+
+impl PgDeckRepository {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait::async_trait]
+impl DeckRepository for PgDeckRepository {
+    async fn create(&self, deck: &Deck) -> AppResult<Uuid> {
+        sqlx::query_scalar(
+            "INSERT INTO decks (id, user_id, name, description, created_at, updated_at) 
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+        )
+        .bind(deck.id)
+        .bind(deck.user_id)
+        .bind(&deck.name)
+        .bind(&deck.description)
+        .bind(deck.created_at)
+        .bind(deck.updated_at)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(Into::into)
+    }
+
+    async fn find_by_id(&self, id: Uuid) -> AppResult<Option<Deck>> {
+        let deck = sqlx::query_as::<_, Deck>(
+            "SELECT id, user_id, name, description, created_at, updated_at 
+             FROM decks WHERE id = $1",
+        )
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(deck)
+    }
+
+    async fn find_by_user(&self, user_id: Uuid) -> AppResult<Vec<Deck>> {
+        let decks = sqlx::query_as::<_, Deck>(
+            "SELECT id, user_id, name, description, created_at, updated_at 
+             FROM decks WHERE user_id = $1 ORDER BY created_at DESC",
+        )
+        .bind(user_id)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(decks)
+    }
+
+    async fn update(&self, deck: &Deck) -> AppResult<()> {
+        sqlx::query(
+            "UPDATE decks SET name = $1, description = $2, updated_at = $3 WHERE id = $4"
+        )
+        .bind(&deck.name)
+        .bind(&deck.description)
+        .bind(deck.updated_at)
+        .bind(deck.id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    async fn delete(&self, id: Uuid) -> AppResult<()> {
+        sqlx::query("DELETE FROM decks WHERE id = $1")
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 }

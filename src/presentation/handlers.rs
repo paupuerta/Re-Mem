@@ -114,3 +114,37 @@ pub struct SubmitReviewRequest {
     pub user_id: Uuid,
     pub user_answer: String,
 }
+
+/// Create deck handler
+pub async fn create_deck(
+    Path(user_id): Path<Uuid>,
+    State(services): State<AppServices>,
+    Json(req): Json<CreateDeckRequest>,
+) -> Response {
+    match services.deck_service.create_deck(user_id, req).await {
+        Ok(deck) => (StatusCode::CREATED, Json(deck)).into_response(),
+        Err(err) => err.into_response(),
+    }
+}
+
+/// Get user decks handler
+pub async fn get_user_decks(
+    Path(user_id): Path<Uuid>,
+    State(services): State<AppServices>,
+) -> Response {
+    match services.deck_service.get_user_decks(user_id).await {
+        Ok(decks) => Json(decks).into_response(),
+        Err(err) => err.into_response(),
+    }
+}
+
+/// Get cards by deck handler
+pub async fn get_deck_cards(
+    Path(deck_id): Path<Uuid>,
+    State(services): State<AppServices>,
+) -> Response {
+    match services.card_service.get_deck_cards(deck_id).await {
+        Ok(cards) => Json(cards).into_response(),
+        Err(err) => err.into_response(),
+    }
+}

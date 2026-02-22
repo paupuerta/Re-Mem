@@ -14,6 +14,14 @@ pub trait AIValidator: Send + Sync {
     ) -> Result<ValidationResult>;
 }
 
+/// Embedding Service trait - generates embeddings for text
+#[async_trait]
+pub trait EmbeddingService: Send + Sync {
+    /// Generates an embedding vector for the given text
+    /// Returns a vector of floats representing the text in semantic space
+    async fn generate_embedding(&self, text: &str) -> Result<Vec<f32>>;
+}
+
 /// Result of AI validation
 #[derive(Debug, Clone)]
 pub struct ValidationResult {

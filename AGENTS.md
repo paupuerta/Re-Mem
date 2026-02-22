@@ -5,6 +5,7 @@ This document provides comprehensive guidance for AI agents working on the ReMem
 ## Project Overview
 
 ReMem is a language-learning MVP backend built with Rust using:
+
 - **Hexagonal Architecture** (Ports & Adapters pattern)
 - **FSRS** (Free Spaced Repetition Scheduler) for optimal review scheduling
 - **AI-based answer checking** for intelligent assessment
@@ -17,7 +18,7 @@ ReMem is a language-learning MVP backend built with Rust using:
 
 The project is organized into distinct layers following Hexagonal Architecture:
 
-```
+```bash
 src/
 ├── domain/              # Core business logic (entities, value objects, repositories)
 ├── application/         # Use cases and application services
@@ -29,6 +30,7 @@ src/
 ### Layer Responsibilities
 
 #### 1. **Domain Layer** (`src/domain/`)
+
 - **Contains**: Entities, Value Objects, Repository interfaces, Domain Events
 - **Purpose**: Encapsulates pure business logic
 - **Examples**: `User`, `Card`, `Review` entities
@@ -39,6 +41,7 @@ src/
   - Repository traits define contracts only
 
 #### 2. **Application Layer** (`src/application/`)
+
 - **Contains**: Use cases, Application Services, DTOs
 - **Purpose**: Orchestrates domain logic for specific use cases
 - **Examples**: `UserService`, `CardService`, `ReviewService`
@@ -48,6 +51,7 @@ src/
   - Converts between domain and presentation layers
 
 #### 3. **Infrastructure Layer** (`src/infrastructure/`)
+
 - **Contains**: Repository implementations, Database access, External APIs
 - **Purpose**: Technical implementations of domain contracts
 - **Examples**: `PgUserRepository`, `PgCardRepository`, `DbConfig`
@@ -57,6 +61,7 @@ src/
   - External service integrations
 
 #### 4. **Presentation Layer** (`src/presentation/`)
+
 - **Contains**: HTTP handlers, routing, request/response mapping
 - **Purpose**: Exposes API endpoints
 - **Examples**: REST endpoints, request validation
@@ -66,6 +71,7 @@ src/
   - Converts DTOs to domain objects and vice versa
 
 #### 5. **Shared Layer** (`src/shared/`)
+
 - **Contains**: Event bus, error handling, logging configuration
 - **Purpose**: Cross-cutting concerns
 - **Examples**: `AppError`, `EventBus`, `DomainEvent`
@@ -77,6 +83,7 @@ src/
 ## Key Principles
 
 ### SOLID Principles
+
 - **S**ingle Responsibility: Each module has one reason to change
 - **O**pen/Closed: Open for extension, closed for modification
 - **L**iskov Substitution: Trait implementations are substitutable
@@ -84,11 +91,13 @@ src/
 - **D**ependency Inversion: Depend on abstractions (traits), not concrete types
 
 ### KISS (Keep It Simple, Stupid)
+
 - Prefer simple solutions over complex ones
 - Each function should do one thing well
 - Avoid over-abstraction until needed
 
 ### YAGNI (You Aren't Gonna Need It)
+
 - Don't add features until they're actually needed
 - No speculative code
 - Minimal but complete implementation
@@ -98,6 +107,7 @@ src/
 ### Adding a New Entity
 
 1. **Define in Domain** (`src/domain/entities.rs`):
+
    ```rust
    #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
    pub struct YourEntity {
@@ -108,6 +118,7 @@ src/
    ```
 
 2. **Create Repository Interface** (`src/domain/repositories.rs`):
+
    ```rust
    #[async_trait]
    pub trait YourEntityRepository: Send + Sync {
@@ -117,6 +128,7 @@ src/
    ```
 
 3. **Implement in Infrastructure** (`src/infrastructure/repositories.rs`):
+
    ```rust
    #[async_trait]
    impl YourEntityRepository for PgYourEntityRepository {
@@ -127,6 +139,7 @@ src/
    ```
 
 4. **Create Application Service** (`src/application/services.rs`):
+
    ```rust
    pub struct YourEntityService {
        repo: Arc<dyn YourEntityRepository>,
@@ -134,6 +147,7 @@ src/
    ```
 
 5. **Add API Endpoint** (`src/presentation/handlers.rs`):
+
    ```rust
    pub async fn create_your_entity(
        Json(req): Json<CreateYourEntityRequest>,
@@ -150,6 +164,7 @@ src/
 ### Adding an Event
 
 1. **Create Domain Event** in `src/shared/event_bus.rs`:
+
    ```rust
    pub struct YourEntityCreatedEvent {
        pub entity_id: Uuid,
@@ -159,6 +174,7 @@ src/
    ```
 
 2. **Publish in Service**:
+
    ```rust
    event_bus.publish(YourEntityCreatedEvent { ... }).await?;
    ```
@@ -168,16 +184,19 @@ src/
 ## Testing Strategy
 
 ### Unit Tests
+
 - Test value objects (`src/domain/value_objects.rs`)
 - Test business logic in entities
 - Located near implementation with `#[cfg(test)]` sections
 
 ### Integration Tests
+
 - Test repository implementations
 - Located in `tests/` directory
 - Use test database
 
-### Example:
+### Example
+
 ```rust
 #[tokio::test]
 async fn test_create_user() {
@@ -268,7 +287,7 @@ cargo test --all
 
 ## File Structure Reference
 
-```
+```bash
 re-mem/
 ├── src/
 │   ├── main.rs                 # Entry point
@@ -312,6 +331,7 @@ re-mem/
 ## Common Patterns
 
 ### Error Handling Pattern
+
 ```rust
 pub async fn operation(&self) -> AppResult<Result> {
     do_something().await?
@@ -321,6 +341,7 @@ pub async fn operation(&self) -> AppResult<Result> {
 ```
 
 ### Service Call Pattern
+
 ```rust
 pub async fn handler(
     Json(req): Json<Request>,
@@ -332,6 +353,7 @@ pub async fn handler(
 ```
 
 ### Repository Pattern
+
 ```rust
 #[async_trait]
 impl YourRepository for PgYourRepository {
@@ -348,6 +370,7 @@ impl YourRepository for PgYourRepository {
 ## When to Ask Questions
 
 Ask for clarification when:
+
 - Architecture decisions affect multiple layers
 - New entity/domain concept needed
 - Complex business logic needs definition

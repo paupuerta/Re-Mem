@@ -1,11 +1,11 @@
 use re_mem::{
-    application::services::{CardService, ReviewService, UserService},
+    application::services::{CardService, DeckService, ReviewService, UserService},
     application::use_cases::ReviewCardUseCase,
     infrastructure::{
         ai_validator::{FallbackValidator, OpenAIValidator},
         database::{init_db_pool, DbConfig},
         repositories::{
-            PgCardRepository, PgReviewLogRepository, PgReviewRepository, PgUserRepository,
+            PgCardRepository, PgDeckRepository, PgReviewLogRepository, PgReviewRepository, PgUserRepository,
         },
     },
     presentation::router::{create_router, AppServices, ReviewCardUseCaseTrait},
@@ -40,12 +40,14 @@ async fn main() {
     // Initialize repositories
     let user_repo = Arc::new(PgUserRepository::new(db_pool.clone()));
     let card_repo = Arc::new(PgCardRepository::new(db_pool.clone()));
+    let deck_repo = Arc::new(PgDeckRepository::new(db_pool.clone()));
     let review_repo = Arc::new(PgReviewRepository::new(db_pool.clone()));
     let review_log_repo = Arc::new(PgReviewLogRepository::new(db_pool.clone()));
 
     // Initialize application services (legacy)
     let user_service = Arc::new(UserService::new(user_repo));
     let card_service = Arc::new(CardService::new(card_repo.clone()));
+    let deck_service = Arc::new(DeckService::new(deck_repo));
     let review_service = Arc::new(ReviewService::new(review_repo));
 
     // Initialize Event Bus
@@ -81,6 +83,7 @@ async fn main() {
     let app_services = AppServices {
         user_service,
         card_service,
+        deck_service,
         review_service,
         review_card_use_case,
     };

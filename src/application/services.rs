@@ -53,12 +53,16 @@ impl CardService {
     }
 
     pub async fn create_card(&self, user_id: Uuid, req: CreateCardRequest) -> AppResult<CardDto> {
-        let card = Card::new(user_id, req.question, req.answer);
+        let mut card = Card::new(user_id, req.question, req.answer);
+        if let Some(deck_id) = req.deck_id {
+            card = card.with_deck(deck_id);
+        }
         let card_id = self.card_repo.create(&card).await?;
 
         Ok(CardDto {
             id: card_id,
             user_id: card.user_id,
+            deck_id: card.deck_id,
             question: card.question,
             answer: card.answer,
             fsrs_state: card.fsrs_state,
@@ -73,6 +77,23 @@ impl CardService {
             .map(|card| CardDto {
                 id: card.id,
                 user_id: card.user_id,
+                deck_id: card.deck_id,
+                question: card.question,
+                answer: card.answer,
+                fsrs_state: card.fsrs_state,
+            })
+            .collect())
+    }
+
+    pub async fn get_deck_cards(&self, deck_id: Uuid) -> AppResult<Vec<CardDto>> {
+        let cards = self.card_repo.find_by_deck(deck_id).await?;
+
+        Ok(cards
+            .into_iter()
+            .map(|card| CardDto {
+                id: card.id,
+                user_id: card.user_id,
+                deck_id: card.deck_id,
                 question: card.question,
                 answer: card.answer,
                 fsrs_state: card.fsrs_state,
@@ -105,5 +126,46 @@ impl ReviewService {
             card_id: review.card_id,
             grade: review.grade,
         })
+    }
+}
+
+/// Deck service - handles deck operations
+pub struct DeckService {
+    deck_repo: std::sync::Arc<dyn DeckRepository>,
+}
+
+impl DeckService {
+    pub fn new(deck_repo: std::sync::Arc<dyn DeckRepository>) -> Self {
+        Self { deck_repo }
+    }
+
+    pub async fn create_deck(&self, user_id: Uuid, req: CreateDeckRequest) -> AppResult<DeckDto> {
+        let deck = Deck::new(user_id, req.name, req.description);
+        let deck_id = self.deck_repo.create(&deck).await?;
+
+        Ok(DeckDto {
+            id: deck_id,
+            user_id: deck.user_id,
+            name: deck.name,
+            description: deck.description,
+            created_at: deck.created_at,
+            updated_at: deck.updated_at,
+        })
+    }
+
+    pub async fn get_user_decks(&self, user_id: Uuid) -> AppResult<Vec<DeckDto>> {
+        let decks = self.deck_repo.find_by_user(user_id).await?;
+
+        Ok(decks
+            .into_iter()
+            .map(|deck| DeckDto {
+                id: deck.id,
+                user_id: deck.user_id,
+                name: deck.name,
+                description: deck.description,
+                created_at: deck.created_at,
+                updated_at: deck.updated_at,
+            })
+            .collect())
     }
 }

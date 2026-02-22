@@ -9,7 +9,7 @@ use async_openai::{
 };
 use async_trait::async_trait;
 
-use crate::domain::ports::{AIValidator, ValidationMethod, ValidationResult};
+use crate::domain::ports::{AIValidator, EmbeddingService, ValidationMethod, ValidationResult};
 
 /// OpenAI-based AI validator with cascading validation strategy
 pub struct OpenAIValidator {
@@ -235,6 +235,29 @@ impl AIValidator for FallbackValidator {
             score: jaccard,
             method: ValidationMethod::Exact, // closest approximation
         })
+    }
+}
+
+#[async_trait]
+impl EmbeddingService for OpenAIValidator {
+    async fn generate_embedding(&self, text: &str) -> Result<Vec<f32>> {
+        let request = CreateEmbeddingRequestArgs::default()
+            .model(&self.embedding_model)
+            .input(vec![text])
+            .build()?;
+
+        let response = self
+            .client
+            .embeddings()
+            .create(request)
+            .await
+            .context("Failed to generate embedding")?;
+
+        if response.data.is_empty() {
+            anyhow::bail!("No embedding returned from API");
+        }
+
+        Ok(response.data[0].embedding.clone())
     }
 }
 
