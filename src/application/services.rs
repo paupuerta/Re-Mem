@@ -100,6 +100,18 @@ impl CardService {
             })
             .collect())
     }
+
+    pub async fn delete_card(&self, card_id: Uuid, user_id: Uuid) -> AppResult<()> {
+        // Verify card exists and belongs to user
+        let card = self.card_repo.find_by_id(card_id).await?
+            .ok_or_else(|| crate::AppError::NotFound(format!("Card with id {} not found", card_id)))?;
+        
+        if card.user_id != user_id {
+            return Err(crate::AppError::AuthorizationError("Cannot delete card belonging to another user".to_string()));
+        }
+
+        self.card_repo.delete(card_id).await
+    }
 }
 
 /// Review service - handles review/study operations using FSRS
@@ -167,5 +179,17 @@ impl DeckService {
                 updated_at: deck.updated_at,
             })
             .collect())
+    }
+
+    pub async fn delete_deck(&self, deck_id: Uuid, user_id: Uuid) -> AppResult<()> {
+        // Verify deck exists and belongs to user
+        let deck = self.deck_repo.find_by_id(deck_id).await?
+            .ok_or_else(|| crate::AppError::NotFound(format!("Deck with id {} not found", deck_id)))?;
+        
+        if deck.user_id != user_id {
+            return Err(crate::AppError::AuthorizationError("Cannot delete deck belonging to another user".to_string()));
+        }
+
+        self.deck_repo.delete(deck_id).await
     }
 }

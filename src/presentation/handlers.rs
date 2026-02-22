@@ -148,3 +148,25 @@ pub async fn get_deck_cards(
         Err(err) => err.into_response(),
     }
 }
+
+/// Delete deck handler
+pub async fn delete_deck(
+    Path((user_id, deck_id)): Path<(Uuid, Uuid)>,
+    State(services): State<AppServices>,
+) -> Response {
+    match services.deck_service.delete_deck(deck_id, user_id).await {
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(err) => err.into_response(),
+    }
+}
+
+/// Delete card handler
+pub async fn delete_card(
+    Path((user_id, card_id)): Path<(Uuid, Uuid)>,
+    State(services): State<AppServices>,
+) -> Response {
+    match services.card_service.delete_card(card_id, user_id).await {
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(err) => err.into_response(),
+    }
+}

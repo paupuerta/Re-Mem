@@ -1,5 +1,5 @@
 use axum::{
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
 use std::sync::Arc;
@@ -66,11 +66,19 @@ pub fn create_router(app_services: AppServices) -> Router {
             "/users/{user_id}/decks",
             post(create_deck).get(get_user_decks),
         )
+        .route(
+            "/users/{user_id}/decks/{deck_id}",
+            delete(delete_deck),
+        )
         .route("/decks/{deck_id}/cards", get(get_deck_cards))
         // Card routes
         .route(
             "/users/{user_id}/cards",
             post(create_card).get(get_user_cards),
+        )
+        .route(
+            "/users/{user_id}/cards/{card_id}",
+            delete(delete_card),
         )
         // Review routes (legacy)
         .route(
