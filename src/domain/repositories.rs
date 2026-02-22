@@ -1,7 +1,7 @@
 use crate::AppResult;
 use uuid::Uuid;
 
-use super::entities::{Card, Review, ReviewLog, User};
+use super::entities::{Card, Deck, Review, ReviewLog, User};
 
 /// Repository interface for User domain
 /// SOLID: Interface Segregation and Dependency Inversion
@@ -14,12 +14,23 @@ pub trait UserRepository: Send + Sync {
     async fn delete(&self, id: Uuid) -> AppResult<()>;
 }
 
+/// Repository interface for Deck domain
+#[async_trait::async_trait]
+pub trait DeckRepository: Send + Sync {
+    async fn create(&self, deck: &Deck) -> AppResult<Uuid>;
+    async fn find_by_id(&self, id: Uuid) -> AppResult<Option<Deck>>;
+    async fn find_by_user(&self, user_id: Uuid) -> AppResult<Vec<Deck>>;
+    async fn update(&self, deck: &Deck) -> AppResult<()>;
+    async fn delete(&self, id: Uuid) -> AppResult<()>;
+}
+
 /// Repository interface for Card domain
 #[async_trait::async_trait]
 pub trait CardRepository: Send + Sync {
     async fn create(&self, card: &Card) -> AppResult<Uuid>;
     async fn find_by_id(&self, id: Uuid) -> AppResult<Option<Card>>;
     async fn find_by_user(&self, user_id: Uuid) -> AppResult<Vec<Card>>;
+    async fn find_by_deck(&self, deck_id: Uuid) -> AppResult<Vec<Card>>;
     async fn update(&self, card: &Card) -> AppResult<()>;
     async fn delete(&self, id: Uuid) -> AppResult<()>;
 }

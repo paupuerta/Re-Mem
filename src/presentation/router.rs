@@ -8,7 +8,7 @@ use tower_http::trace::TraceLayer;
 
 use super::handlers::*;
 use crate::application::{
-    services::{CardService, ReviewService, UserService},
+    services::{CardService, DeckService, ReviewService, UserService},
     use_cases::ReviewCardUseCase,
 };
 use crate::domain::ports::AIValidator;
@@ -19,6 +19,7 @@ use crate::domain::repositories::{CardRepository, ReviewLogRepository};
 pub struct AppServices {
     pub user_service: Arc<UserService>,
     pub card_service: Arc<CardService>,
+    pub deck_service: Arc<DeckService>,
     pub review_service: Arc<ReviewService>,
     pub review_card_use_case: Arc<dyn ReviewCardUseCaseTrait>,
 }
@@ -60,6 +61,12 @@ pub fn create_router(app_services: AppServices) -> Router {
         // User routes
         .route("/users", post(create_user))
         .route("/users/{user_id}", get(get_user))
+        // Deck routes
+        .route(
+            "/users/{user_id}/decks",
+            post(create_deck).get(get_user_decks),
+        )
+        .route("/decks/{deck_id}/cards", get(get_deck_cards))
         // Card routes
         .route(
             "/users/{user_id}/cards",

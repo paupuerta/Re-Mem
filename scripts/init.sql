@@ -1,6 +1,9 @@
 -- Database initialization script for Docker
 -- This script creates the initial database schema
 
+-- Enable pgvector extension for embeddings
+CREATE EXTENSION IF NOT EXISTS vector;
+
 -- Create ENUM for card state
 CREATE TYPE card_state AS ENUM ('new', 'learning', 'review', 'relearning');
 
@@ -15,12 +18,26 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
+-- Create decks table
+CREATE TABLE IF NOT EXISTS decks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_decks_user_id ON decks(user_id);
+
 -- Create cards (flashcards) table with FSRS state
 CREATE TABLE IF NOT EXISTS cards (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    deck_id UUID REFERENCES decks(id) ON DELETE SET NULL,
     question TEXT NOT NULL,
     answer TEXT NOT NULL,
+    answer_embedding vector(1536),
     fsrs_state JSONB NOT NULL DEFAULT '{
         "stability": 0.0,
         "difficulty": 0.0,
@@ -36,6 +53,7 @@ CREATE TABLE IF NOT EXISTS cards (
 );
 
 CREATE INDEX IF NOT EXISTS idx_cards_user_id ON cards(user_id);
+CREATE INDEX IF NOT EXISTS idx_cards_deck_id ON cards(deck_id);
 CREATE INDEX IF NOT EXISTS idx_cards_fsrs_state ON cards USING GIN (fsrs_state);
 
 -- Create reviews table

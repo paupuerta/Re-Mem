@@ -20,6 +20,7 @@ pub struct UserDto {
 /// Create Card DTO
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateCardRequest {
+    pub deck_id: Option<Uuid>,
     pub question: String,
     pub answer: String,
 }
@@ -29,9 +30,26 @@ pub struct CreateCardRequest {
 pub struct CardDto {
     pub id: Uuid,
     pub user_id: Uuid,
+    pub deck_id: Option<Uuid>,
     pub question: String,
     pub answer: String,
     pub fsrs_state: FsrsState,
+}
+
+/// Create Deck DTO
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateDeckRequest {
+    pub name: String,
+    pub description: Option<String>,
+}
+
+/// Deck response DTO
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeckDto {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub name: String,
+    pub description: Option<String>,
 }
 
 /// Review Card DTO - for submitting a review with user answer

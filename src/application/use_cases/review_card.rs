@@ -273,6 +273,10 @@ mod tests {
             Ok(vec![])
         }
 
+        async fn find_by_deck(&self, _deck_id: Uuid) -> AppResult<Vec<Card>> {
+            Ok(vec![])
+        }
+
         async fn update(&self, _card: &Card) -> AppResult<()> {
             Ok(())
         }
@@ -327,8 +331,10 @@ mod tests {
         let card = Card {
             id: card_id,
             user_id,
+            deck_id: None,
             question: "What is 2+2?".to_string(),
             answer: "4".to_string(),
+            answer_embedding: None,
             fsrs_state: FsrsState::default(),
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
@@ -394,8 +400,10 @@ mod tests {
             let card = Card {
                 id: card_id,
                 user_id,
+                deck_id: None,
                 question: "Test".to_string(),
                 answer: "Answer".to_string(),
+                answer_embedding: None,
                 fsrs_state: FsrsState::default(),
                 created_at: chrono::Utc::now(),
                 updated_at: chrono::Utc::now(),
