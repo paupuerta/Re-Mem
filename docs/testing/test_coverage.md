@@ -3,6 +3,7 @@
 ## Test Summary
 
 **Total Tests**: 36 tests passing ✅
+
 - **Unit Tests (src/)**: 19 tests
 - **Repository Tests (tests/deck_card_tests.rs)**: 7 tests  
 - **Integration Tests (tests/integration_tests.rs)**: 10 tests
@@ -12,19 +13,23 @@
 ### Unit Tests (19 tests)
 
 #### CreateCardUseCase (3 tests)
+
 - ✅ `test_create_card_with_embedding_success` - Verifies card creation with embedding generation
 - ✅ `test_create_card_without_deck` - Verifies card creation without deck assignment
 - ✅ `test_create_card_embedding_failure_continues` - Verifies graceful handling when embedding fails
 
 #### CreateDeckUseCase (2 tests)
+
 - ✅ `test_create_deck_success` - Verifies deck creation with description
 - ✅ `test_create_deck_without_description` - Verifies deck creation without description
 
 #### GetDecksUseCase (2 tests)
+
 - ✅ `test_get_decks_returns_user_decks` - Verifies retrieving user's decks
 - ✅ `test_get_decks_returns_empty_list_when_no_decks` - Verifies empty result handling
 
 #### ReviewCardUseCase (6 tests)
+
 - ✅ `test_review_card_use_case_success` - End-to-end review flow
 - ✅ `test_review_card_use_case_card_not_found` - Card not found error handling
 - ✅ `test_review_card_different_scores` - FSRS rating calculation for different AI scores
@@ -34,6 +39,7 @@
 - ✅ `test_update_fsrs_state_lapses` - Handling lapses (failed reviews)
 
 #### Domain & Infrastructure (6 tests)
+
 - ✅ `test_valid_email` - Email validation (valid case)
 - ✅ `test_invalid_email` - Email validation (invalid case)
 - ✅ `test_valid_grade` - Grade validation (valid range 0-5)
@@ -43,12 +49,14 @@
 ### Repository Tests (7 tests)
 
 #### DeckRepository Tests (4 tests)
+
 - ✅ `test_create_deck_success` - Successful deck creation
 - ✅ `test_create_deck_failure` - Error handling during creation
 - ✅ `test_find_by_user_returns_decks` - Finding all user decks
 - ✅ `test_find_by_user_empty` - Handling users with no decks
 
 #### CardRepository Tests (3 tests)
+
 - ✅ `test_find_by_deck_returns_only_deck_cards` - Filtering cards by deck
 - ✅ `test_find_by_deck_returns_empty_when_no_cards` - Empty deck handling
 - ✅ `test_card_with_embedding` - Embedding storage verification
@@ -56,6 +64,7 @@
 ### Integration Tests (10 tests)
 
 #### Entity Creation Tests (8 tests)
+
 - ✅ `test_user_creation` - User entity creation
 - ✅ `test_deck_creation` - Deck with description
 - ✅ `test_deck_creation_without_description` - Deck without description
@@ -66,27 +75,32 @@
 - ✅ `test_review_creation` - Review entity creation
 
 #### Value Object Tests (2 tests)
+
 - ✅ `test_value_object_email_validation` - Email value object
 - ✅ `test_value_object_grade_validation` - Grade value object
 
 ## Test Coverage by Layer
 
 ### Domain Layer ✅
+
 - **Entities**: Deck, Card (with deck_id and embedding), User, Review
 - **Value Objects**: Email, Grade
 - **Repositories**: Trait definitions for Deck and Card operations
 
 ### Application Layer ✅
+
 - **Use Cases**: CreateDeck, GetDecks, CreateCard (with embedding)
 - **Business Logic**: FSRS algorithm, AI scoring, embedding generation
 
 ### Infrastructure Layer ✅
+
 - **Repositories**: Mock implementations for testing
 - **AI Validator**: Cosine similarity calculations
 
 ## Historia 2 Specific Coverage
 
 ### New Features Tested
+
 1. **Deck Management**
    - ✅ Create deck with/without description
    - ✅ Retrieve user decks
@@ -108,12 +122,14 @@
 ## Test Quality Metrics
 
 ### Code Coverage
+
 - **Domain Entities**: 100% (all constructors and builder methods)
 - **Use Cases**: 100% (all public methods)
 - **Repository Traits**: 100% (via mock implementations)
 - **Error Handling**: High (failure scenarios covered)
 
 ### Test Characteristics
+
 - ✅ **Isolated**: Tests use mocks, no database dependencies
 - ✅ **Fast**: All 36 tests run in < 1 second
 - ✅ **Deterministic**: No random failures

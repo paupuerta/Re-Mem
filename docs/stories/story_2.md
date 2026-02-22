@@ -1,6 +1,7 @@
 # Historia 2: Deck and Card Creation - User Guide
 
 ## Overview
+
 Historia 2 adds the ability to organize flashcards into decks and create new cards with AI-powered semantic embeddings for future similarity search features.
 
 ## New Features
@@ -8,7 +9,9 @@ Historia 2 adds the ability to organize flashcards into decks and create new car
 ### Backend Features
 
 #### 1. Deck Management
+
 - **Create Deck**: POST `/users/{user_id}/decks`
+
   ```json
   {
     "name": "Spanish Vocabulary",
@@ -23,7 +26,9 @@ Historia 2 adds the ability to organize flashcards into decks and create new car
   - Returns all cards within a specific deck
 
 #### 2. Enhanced Card Creation
+
 - **Create Card with Deck**: POST `/users/{user_id}/cards`
+
   ```json
   {
     "deck_id": "uuid-of-deck",  // Optional
@@ -31,11 +36,13 @@ Historia 2 adds the ability to organize flashcards into decks and create new car
     "answer": "hola"
   }
   ```
+
   - Cards can optionally belong to a deck
   - AI embeddings are automatically generated for the answer
   - Embeddings stored as vector(1536) for future semantic search
 
 #### 3. Database Schema
+
 - **New `decks` table**: Organizes cards into collections
 - **Extended `cards` table**:
   - `deck_id`: Optional foreign key to decks
@@ -45,18 +52,23 @@ Historia 2 adds the ability to organize flashcards into decks and create new car
 ### Frontend Features
 
 #### 1. Deck Management Screen
+
 Navigate to deck management from the home screen via:
+
 - AppBar icon button (top right)
 - "Manage Decks" button on home screen
 
 Features:
+
 - **List all decks** with pull-to-refresh
 - **Create new deck** via floating action button
 - **View deck cards** by tapping on any deck
 - Empty state with helpful message when no decks exist
 
 #### 2. Create Deck Dialog
+
 Accessible via "New Deck" button on DecksScreen:
+
 - **Name field**: Required, minimum 2 characters
 - **Description field**: Optional, supports multiple lines
 - Form validation with error messages
@@ -64,7 +76,9 @@ Accessible via "New Deck" button on DecksScreen:
 - Success/error feedback via snackbar
 
 #### 3. Deck Cards Screen
+
 Shows all cards within a specific deck:
+
 - **Card list** with question and answer preview
 - **Create card** via floating action button
 - Cards automatically assigned to current deck
@@ -73,7 +87,9 @@ Shows all cards within a specific deck:
 - Tap card to start review
 
 #### 4. Create Card Dialog
+
 Accessible from DeckCardsScreen:
+
 - **Question field**: Required, minimum 3 characters
 - **Answer field**: Required, minimum 1 character
 - **Auto deck assignment**: Cards created from deck screen are automatically assigned
@@ -86,6 +102,7 @@ Accessible from DeckCardsScreen:
 ### Backend (Rust)
 
 **Domain Layer**:
+
 - `Deck` entity: Collection organizer
 - `Card` entity: Extended with `deck_id` and `answer_embedding`
 - `DeckRepository` trait: CRUD operations
@@ -93,12 +110,14 @@ Accessible from DeckCardsScreen:
 - `EmbeddingService` trait: Generate semantic embeddings
 
 **Application Layer**:
+
 - `CreateDeckUseCase`: Business logic for deck creation
 - `CreateCardUseCase`: Card creation with automatic embedding generation
 - `GetDecksUseCase`: Retrieve user's decks
 - DTOs for request/response serialization
 
 **Infrastructure Layer**:
+
 - `PgDeckRepository`: PostgreSQL implementation
 - `PgCardRepository`: Updated with deck and embedding support
 - `OpenAIValidator`: Implements `EmbeddingService` using text-embedding-3-small
@@ -107,16 +126,19 @@ Accessible from DeckCardsScreen:
 ### Frontend (Flutter)
 
 **Domain Layer**:
+
 - `Deck` entity with JSON serialization
 - `Card` entity with optional `deckId`
 - `DeckRepository` interface
 - Use cases: `CreateDeck`, `GetDecks`
 
 **Data Layer**:
+
 - `DeckRepositoryImpl`: API integration
 - `CardRepositoryImpl`: Updated to handle deck assignments
 
 **Presentation Layer**:
+
 - `DecksScreen`: List and manage decks
 - `DeckCardsScreen`: View cards in deck
 - `CreateDeckDialog`: Deck creation form
@@ -126,11 +148,13 @@ Accessible from DeckCardsScreen:
 ## Error Handling
 
 ### Backend
+
 - Graceful degradation: If embedding generation fails, card is still created
 - Proper error responses with status codes
 - Database constraints ensure data integrity
 
 ### Frontend
+
 - Form validation with user-friendly error messages
 - Network error handling with retry options
 - Loading states during async operations
@@ -139,12 +163,14 @@ Accessible from DeckCardsScreen:
 ## Testing
 
 ### Backend Tests
+
 - 17 unit tests passing
 - CreateDeckUseCase tests (creation with/without description)
 - CreateCardUseCase tests (with embedding, without deck, embedding failure)
 - All domain and infrastructure tests
 
 ### Frontend
+
 - Form validation tests
 - Use case tests with mock repositories
 - Widget tests for dialogs and screens
@@ -152,6 +178,7 @@ Accessible from DeckCardsScreen:
 ## Future Enhancements
 
 ### Planned Features
+
 1. **Semantic Search**: Use embeddings to find similar cards
 2. **Deck Statistics**: Track learning progress per deck
 3. **Deck Sharing**: Share decks with other users
@@ -159,6 +186,7 @@ Accessible from DeckCardsScreen:
 5. **Deck Templates**: Pre-made decks for common topics
 
 ### Performance Optimizations
+
 1. **Batch Embedding Generation**: Generate multiple embeddings in parallel
 2. **Caching**: Cache deck lists and card counts
 3. **Pagination**: Add pagination for large deck/card lists
@@ -169,6 +197,7 @@ Accessible from DeckCardsScreen:
 If you have an existing ReMem installation:
 
 1. **Update Docker Image**:
+
    ```yaml
    # docker-compose.yml
    postgres:
@@ -176,11 +205,13 @@ If you have an existing ReMem installation:
    ```
 
 2. **Run Migration**:
+
    ```bash
    docker exec -i re_mem_postgres psql -U re_mem -d re_mem < scripts/migrate_add_decks.sql
    ```
 
 3. **Restart Backend**:
+
    ```bash
    docker-compose restart backend
    ```
@@ -190,6 +221,7 @@ For new installations, everything is included in `scripts/init.sql`.
 ## API Examples
 
 ### Create a Deck
+
 ```bash
 curl -X POST http://localhost:3000/users/{user_id}/decks \
   -H "Content-Type: application/json" \
@@ -200,6 +232,7 @@ curl -X POST http://localhost:3000/users/{user_id}/decks \
 ```
 
 ### Create a Card with Deck Assignment
+
 ```bash
 curl -X POST http://localhost:3000/users/{user_id}/cards \
   -H "Content-Type: application/json" \
@@ -211,11 +244,13 @@ curl -X POST http://localhost:3000/users/{user_id}/cards \
 ```
 
 ### List All Decks
+
 ```bash
 curl http://localhost:3000/users/{user_id}/decks
 ```
 
 ### Get Cards in Deck
+
 ```bash
 curl http://localhost:3000/decks/{deck_id}/cards
 ```
@@ -224,38 +259,45 @@ curl http://localhost:3000/decks/{deck_id}/cards
 
 ### Backend Issues
 
-**Error: "column deck_id does not exist"**
+#### Error: "column deck_id does not exist"
+
 - Run the migration script: `scripts/migrate_add_decks.sql`
 - Or recreate the database with `docker-compose down -v && docker-compose up -d`
 
-**Error: "extension vector does not exist"**
+#### Error: "extension vector does not exist"
+
 - Ensure using `pgvector/pgvector:pg15` image
 - Restart PostgreSQL container
 
-**Embeddings not generated**
+#### Embeddings not generated
+
 - Check OPENAI_API_KEY environment variable
 - System uses FallbackValidator if no API key (cards still created)
 
 ### Frontend Issues
 
-**Decks not loading**
+#### Decks not loading
+
 - Check backend is running on port 3000
 - Verify API_BASE_URL in frontend configuration
 - Check network connectivity
 
-**Forms not submitting**
+#### Forms not submitting
+
 - Check form validation errors
 - Verify all required fields are filled
 - Check browser console for JavaScript errors
 
 ## Performance Considerations
 
-### Backend
+### Backend Performance
+
 - Embedding generation adds ~200-500ms to card creation
 - pgvector storage is efficient (1536 floats = ~6KB per card)
 - Consider rate limiting for OpenAI API calls
 
 ### Frontend
+
 - Deck list refreshes on navigation back
 - Card list filtered client-side (consider server-side for large decks)
 - Images/avatars not yet implemented (future enhancement)
