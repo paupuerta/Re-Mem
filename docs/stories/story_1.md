@@ -23,7 +23,7 @@ This story implements an AI-powered flashcard review system with intelligent ans
 
 **Hexagonal Architecture (Ports & Adapters)** with Clean Architecture principles:
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │           Presentation Layer                │
 │    (HTTP Handlers, DTOs, Routes)           │
@@ -50,6 +50,7 @@ This story implements an AI-powered flashcard review system with intelligent ans
 #### Entities
 
 **FsrsState** - Value object for FSRS algorithm state:
+
 ```rust
 pub struct FsrsState {
     pub stability: f32,           // Memory retention strength (0.0+)
@@ -64,6 +65,7 @@ pub struct FsrsState {
 ```
 
 **CardState** - Enum for FSRS learning states:
+
 ```rust
 pub enum CardState {
     New,          // Never reviewed
@@ -74,6 +76,7 @@ pub enum CardState {
 ```
 
 **Card** - Updated to include FSRS state:
+
 ```rust
 pub struct Card {
     pub id: Uuid,
@@ -87,6 +90,7 @@ pub struct Card {
 ```
 
 **ReviewLog** - Tracks AI validation results:
+
 ```rust
 pub struct ReviewLog {
     pub id: Uuid,
@@ -104,6 +108,7 @@ pub struct ReviewLog {
 #### Ports (Traits)
 
 **AIValidator** - Port for AI validation (Dependency Inversion):
+
 ```rust
 pub trait AIValidator: Send + Sync {
     async fn validate(
@@ -116,6 +121,7 @@ pub trait AIValidator: Send + Sync {
 ```
 
 **ValidationResult**:
+
 ```rust
 pub struct ValidationResult {
     pub score: f32,              // 0.0 to 1.0
@@ -130,6 +136,7 @@ pub enum ValidationMethod {
 ```
 
 **ReviewLogRepository**:
+
 ```rust
 pub trait ReviewLogRepository: Send + Sync {
     async fn create(&self, review_log: &ReviewLog) -> AppResult<Uuid>;
@@ -236,16 +243,19 @@ pub async fn validate(&self, expected: &str, user: &str, question: &str)
 ```
 
 **Exact Match**:
+
 - Case-insensitive
 - Trimmed whitespace
 - Normalized punctuation
 
 **Embedding Similarity**:
+
 - Model: `text-embedding-3-small`
 - Cosine similarity between embeddings
 - Threshold: 0.85 (85% similarity)
 
 **LLM Validation**:
+
 - Model: `gpt-4o-mini`
 - Structured prompt with scoring guidelines
 - Returns score 0.0-1.0
@@ -253,11 +263,13 @@ pub async fn validate(&self, expected: &str, user: &str, question: &str)
 #### PostgreSQL Repositories
 
 **PgCardRepository**:
+
 - JSONB storage for `fsrs_state`
 - Dynamic queries with `sqlx::query_as` (avoid compile-time validation)
 - Manual serialization/deserialization
 
 **PgReviewLogRepository**:
+
 - Insert review logs
 - Query by card_id or user_id
 - Ordered by created_at DESC
@@ -266,9 +278,10 @@ pub async fn validate(&self, expected: &str, user: &str, question: &str)
 
 #### API Endpoint
 
-**POST /api/v1/reviews**
+##### POST /api/v1/reviews
 
 Request:
+
 ```json
 {
   "card_id": "uuid",
@@ -278,6 +291,7 @@ Request:
 ```
 
 Response:
+
 ```json
 {
   "card_id": "uuid",
@@ -310,17 +324,20 @@ pub async fn submit_intelligent_review(
 ### Database Schema
 
 **Updated `cards` table**:
+
 ```sql
 ALTER TABLE cards 
 ADD COLUMN fsrs_state JSONB NOT NULL DEFAULT '{"stability":0,"difficulty":0,"elapsed_days":0,"scheduled_days":0,"reps":0,"lapses":0,"state":"new","last_review":null}';
 ```
 
 **New `card_state` enum**:
+
 ```sql
 CREATE TYPE card_state AS ENUM ('new', 'learning', 'review', 'relearning');
 ```
 
 **New `review_logs` table**:
+
 ```sql
 CREATE TABLE review_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -343,14 +360,14 @@ CREATE INDEX idx_review_logs_created_at ON review_logs(created_at);
 
 ### Created Files
 
-```
+```rust
 src/domain/ports.rs                 - AIValidator trait, ValidationResult
 src/infrastructure/ai_validator.rs  - OpenAIValidator implementation
 ```
 
 ### Modified Files
 
-```
+```rust
 src/domain/entities.rs              - FsrsState, CardState, ReviewLog, updated Card
 src/domain/repositories.rs          - ReviewLogRepository trait
 src/domain/mod.rs                   - Export ports module
@@ -395,6 +412,7 @@ CHAT_MODEL=gpt-4o-mini
 ### Unit Tests (12 tests passing)
 
 **Use Case Tests**:
+
 - `test_score_to_fsrs_rating` - Score to rating conversion
 - `test_update_fsrs_state_new_card` - First review initialization
 - `test_update_fsrs_state_progression` - Card state transitions (New → Learning → Review)
@@ -404,9 +422,11 @@ CHAT_MODEL=gpt-4o-mini
 - `test_review_card_different_scores` - Multiple score scenarios
 
 **Domain Tests**:
+
 - Email and grade validation tests (existing)
 
 **Infrastructure Tests**:
+
 - `test_cosine_similarity` - Embedding similarity calculation
 
 ### Running Tests
@@ -495,6 +515,7 @@ The cascading validation strategy significantly reduces API costs:
 ## Event System
 
 **Domain Event**:
+
 ```rust
 pub enum DomainEvent {
     CardReviewed {
@@ -510,6 +531,7 @@ pub enum DomainEvent {
 **Current Usage**: Simple in-memory publishing with logging
 
 **Future Evolution**:
+
 - Event store (PostgreSQL or EventStoreDB)
 - Event sourcing for full audit trail
 - Event handlers for analytics, notifications
@@ -526,18 +548,21 @@ pub enum DomainEvent {
 ## Future Improvements
 
 ### Short Term
+
 - [ ] Add retry logic for OpenAI API
 - [ ] Implement answer caching (Redis)
 - [ ] Add metrics/observability (Prometheus)
 - [ ] More sophisticated LLM prompting
 
 ### Medium Term
+
 - [ ] Full FSRS 5 algorithm integration
 - [ ] Adaptive embedding threshold
 - [ ] A/B testing framework for validation strategies
 - [ ] Real-time analytics dashboard
 
 ### Long Term
+
 - [ ] Event sourcing implementation
 - [ ] CQRS pattern
 - [ ] Machine learning model for answer validation (replace LLM)
