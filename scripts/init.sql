@@ -83,3 +83,31 @@ CREATE TABLE IF NOT EXISTS review_logs (
 CREATE INDEX IF NOT EXISTS idx_review_logs_card_id ON review_logs(card_id);
 CREATE INDEX IF NOT EXISTS idx_review_logs_user_id ON review_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_review_logs_created_at ON review_logs(created_at DESC);
+
+-- User-level statistics (precalculated for O(1) retrieval)
+CREATE TABLE IF NOT EXISTS user_stats (
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    total_reviews INTEGER NOT NULL DEFAULT 0,
+    correct_reviews INTEGER NOT NULL DEFAULT 0,
+    days_studied INTEGER NOT NULL DEFAULT 0,
+    last_active_date DATE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Deck-level statistics (precalculated for O(1) retrieval)
+CREATE TABLE IF NOT EXISTS deck_stats (
+    deck_id UUID PRIMARY KEY REFERENCES decks(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    total_cards INTEGER NOT NULL DEFAULT 0,
+    total_reviews INTEGER NOT NULL DEFAULT 0,
+    correct_reviews INTEGER NOT NULL DEFAULT 0,
+    days_studied INTEGER NOT NULL DEFAULT 0,
+    last_active_date DATE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_stats_user_id ON user_stats(user_id);
+CREATE INDEX IF NOT EXISTS idx_deck_stats_deck_id ON deck_stats(deck_id);
+CREATE INDEX IF NOT EXISTS idx_deck_stats_user_id ON deck_stats(user_id);
