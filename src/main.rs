@@ -1,12 +1,14 @@
 use re_mem::{
     application::services::{CardService, DeckService, ReviewService, UserService},
-    application::use_cases::ReviewCardUseCase,
+    application::use_cases::{GetDeckStatsUseCase, GetUserStatsUseCase, ReviewCardUseCase},
     infrastructure::{
         ai_validator::{FallbackValidator, OpenAIValidator},
         database::{init_db_pool, DbConfig},
         repositories::{
-            PgCardRepository, PgDeckRepository, PgReviewLogRepository, PgReviewRepository, PgUserRepository,
+            PgCardRepository, PgDeckRepository, PgDeckStatsRepository, PgReviewLogRepository,
+            PgReviewRepository, PgUserRepository, PgUserStatsRepository,
         },
+        StatisticsEventHandler,
     },
     presentation::router::{create_router, AppServices, ReviewCardUseCaseTrait},
     shared::event_bus::EventBus,
@@ -43,15 +45,29 @@ async fn main() {
     let deck_repo = Arc::new(PgDeckRepository::new(db_pool.clone()));
     let review_repo = Arc::new(PgReviewRepository::new(db_pool.clone()));
     let review_log_repo = Arc::new(PgReviewLogRepository::new(db_pool.clone()));
+    let user_stats_repo = Arc::new(PgUserStatsRepository::new(db_pool.clone()));
+    let deck_stats_repo = Arc::new(PgDeckStatsRepository::new(db_pool.clone()));
 
     // Initialize application services (legacy)
     let user_service = Arc::new(UserService::new(user_repo));
     let card_service = Arc::new(CardService::new(card_repo.clone()));
-    let deck_service = Arc::new(DeckService::new(deck_repo));
+    let deck_service = Arc::new(DeckService::new(deck_repo.clone()));
     let review_service = Arc::new(ReviewService::new(review_repo));
+
+    // Initialize statistics use cases
+    let get_user_stats_use_case = Arc::new(GetUserStatsUseCase::new(user_stats_repo.clone()));
+    let get_deck_stats_use_case =
+        Arc::new(GetDeckStatsUseCase::new(deck_stats_repo.clone(), deck_repo));
 
     // Initialize Event Bus
     let event_bus = Arc::new(EventBus::new());
+
+    // Initialize Statistics Event Handler
+    let _stats_handler = Arc::new(StatisticsEventHandler::new(
+        user_stats_repo,
+        deck_stats_repo,
+        card_repo.clone(),
+    ));
 
     // Initialize AI Validator and Review Card Use Case
     let review_card_use_case: Arc<dyn ReviewCardUseCaseTrait> =
@@ -86,6 +102,8 @@ async fn main() {
         deck_service,
         review_service,
         review_card_use_case,
+        get_user_stats_use_case,
+        get_deck_stats_use_case,
     };
 
     // Create router

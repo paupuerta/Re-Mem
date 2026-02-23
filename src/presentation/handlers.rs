@@ -170,3 +170,25 @@ pub async fn delete_card(
         Err(err) => err.into_response(),
     }
 }
+
+/// Get user statistics handler
+pub async fn get_user_stats(
+    Path(user_id): Path<Uuid>,
+    State(services): State<AppServices>,
+) -> Response {
+    match services.get_user_stats_use_case.execute(user_id).await {
+        Ok(stats) => Json(stats).into_response(),
+        Err(err) => err.into_response(),
+    }
+}
+
+/// Get deck statistics handler
+pub async fn get_deck_stats(
+    Path(deck_id): Path<Uuid>,
+    State(services): State<AppServices>,
+) -> Response {
+    match services.get_deck_stats_use_case.execute(deck_id).await {
+        Ok(stats) => Json(stats).into_response(),
+        Err(err) => err.into_response(),
+    }
+}
