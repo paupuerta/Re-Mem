@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use uuid::Uuid;
 
 /// Simple domain events enum for basic event-driven architecture
@@ -12,6 +13,7 @@ pub enum DomainEvent {
     CardCreated {
         card_id: Uuid,
         user_id: Uuid,
+        deck_id: Option<Uuid>,
     },
 }
 
@@ -24,19 +26,29 @@ pub trait EventHandler: Send + Sync {
 /// In-memory event bus for handling domain events
 /// This will evolve into a proper event sourcing system for DDD migration
 pub struct EventBus {
-    // Placeholder for event storage and handlers
-    // TODO: Implement with actual subscriber registry and event store
+    handlers: Vec<Arc<dyn EventHandler>>,
 }
 
 impl EventBus {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            handlers: Vec::new(),
+        }
     }
 
-    /// Publish a domain event
+    /// Register an event handler
+    pub fn register_handler(&mut self, handler: Arc<dyn EventHandler>) {
+        self.handlers.push(handler);
+    }
+
+    /// Publish a domain event to all registered handlers
     pub async fn publish(&self, event: DomainEvent) {
-        // TODO: Route event to registered handlers
         tracing::info!("Event published: {:?}", event);
+        for handler in &self.handlers {
+            if let Err(e) = handler.handle(event.clone()).await {
+                tracing::error!("Event handler error: {:?}", e);
+            }
+        }
     }
 }
 

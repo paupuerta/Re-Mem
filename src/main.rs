@@ -48,9 +48,24 @@ async fn main() {
     let user_stats_repo = Arc::new(PgUserStatsRepository::new(db_pool.clone()));
     let deck_stats_repo = Arc::new(PgDeckStatsRepository::new(db_pool.clone()));
 
+    // Initialize Event Bus and register handlers
+    let mut event_bus = EventBus::new();
+    
+    // Initialize Statistics Event Handler
+    let stats_handler = Arc::new(StatisticsEventHandler::new(
+        user_stats_repo.clone(),
+        deck_stats_repo.clone(),
+        card_repo.clone(),
+    ));
+    
+    // Register the statistics handler
+    event_bus.register_handler(stats_handler);
+    
+    let event_bus = Arc::new(event_bus);
+
     // Initialize application services (legacy)
     let user_service = Arc::new(UserService::new(user_repo));
-    let card_service = Arc::new(CardService::new(card_repo.clone()));
+    let card_service = Arc::new(CardService::new(card_repo.clone(), event_bus.clone()));
     let deck_service = Arc::new(DeckService::new(deck_repo.clone()));
     let review_service = Arc::new(ReviewService::new(review_repo));
 
@@ -58,16 +73,6 @@ async fn main() {
     let get_user_stats_use_case = Arc::new(GetUserStatsUseCase::new(user_stats_repo.clone()));
     let get_deck_stats_use_case =
         Arc::new(GetDeckStatsUseCase::new(deck_stats_repo.clone(), deck_repo));
-
-    // Initialize Event Bus
-    let event_bus = Arc::new(EventBus::new());
-
-    // Initialize Statistics Event Handler
-    let _stats_handler = Arc::new(StatisticsEventHandler::new(
-        user_stats_repo,
-        deck_stats_repo,
-        card_repo.clone(),
-    ));
 
     // Initialize AI Validator and Review Card Use Case
     let review_card_use_case: Arc<dyn ReviewCardUseCaseTrait> =

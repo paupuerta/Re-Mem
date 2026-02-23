@@ -65,13 +65,11 @@ impl EventHandler for StatisticsEventHandler {
                     card_id
                 );
             }
-            DomainEvent::CardCreated { card_id, user_id: _ } => {
+            DomainEvent::CardCreated { card_id: _, user_id: _, deck_id } => {
                 // When a card is created, update deck card count if it belongs to a deck
-                if let Some(card) = self.card_repo.find_by_id(card_id).await? {
-                    if let Some(deck_id) = card.deck_id {
-                        self.deck_stats_repo.increment_card_count(deck_id).await?;
-                        tracing::info!("Deck {} card count incremented", deck_id);
-                    }
+                if let Some(deck_id) = deck_id {
+                    self.deck_stats_repo.increment_card_count(deck_id).await?;
+                    tracing::info!("Deck {} card count incremented", deck_id);
                 }
             }
         }

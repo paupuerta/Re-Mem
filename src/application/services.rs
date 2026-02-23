@@ -1,7 +1,9 @@
 use crate::{
     domain::{entities::*, repositories::*},
+    shared::event_bus::{DomainEvent, EventBus},
     AppResult,
 };
+use std::sync::Arc;
 use uuid::Uuid;
 
 use super::dtos::*;
@@ -9,11 +11,11 @@ use super::dtos::*;
 /// User service - handles user-related operations
 /// SOLID: Single Responsibility - only handles user operations
 pub struct UserService {
-    user_repo: std::sync::Arc<dyn UserRepository>,
+    user_repo: Arc<dyn UserRepository>,
 }
 
 impl UserService {
-    pub fn new(user_repo: std::sync::Arc<dyn UserRepository>) -> Self {
+    pub fn new(user_repo: Arc<dyn UserRepository>) -> Self {
         Self { user_repo }
     }
 
@@ -44,20 +46,31 @@ impl UserService {
 
 /// Card service - handles card (flashcard) operations
 pub struct CardService {
-    card_repo: std::sync::Arc<dyn CardRepository>,
+    card_repo: Arc<dyn CardRepository>,
+    event_bus: Arc<EventBus>,
 }
 
 impl CardService {
-    pub fn new(card_repo: std::sync::Arc<dyn CardRepository>) -> Self {
-        Self { card_repo }
+    pub fn new(card_repo: Arc<dyn CardRepository>, event_bus: Arc<EventBus>) -> Self {
+        Self { card_repo, event_bus }
     }
 
     pub async fn create_card(&self, user_id: Uuid, req: CreateCardRequest) -> AppResult<CardDto> {
         let mut card = Card::new(user_id, req.question, req.answer);
-        if let Some(deck_id) = req.deck_id {
+        let deck_id = req.deck_id;
+        if let Some(deck_id) = deck_id {
             card = card.with_deck(deck_id);
         }
         let card_id = self.card_repo.create(&card).await?;
+
+        // Publish CardCreated event
+        self.event_bus
+            .publish(DomainEvent::CardCreated {
+                card_id,
+                user_id,
+                deck_id,
+            })
+            .await;
 
         Ok(CardDto {
             id: card_id,
@@ -116,11 +129,11 @@ impl CardService {
 
 /// Review service - handles review/study operations using FSRS
 pub struct ReviewService {
-    review_repo: std::sync::Arc<dyn ReviewRepository>,
+    review_repo: Arc<dyn ReviewRepository>,
 }
 
 impl ReviewService {
-    pub fn new(review_repo: std::sync::Arc<dyn ReviewRepository>) -> Self {
+    pub fn new(review_repo: Arc<dyn ReviewRepository>) -> Self {
         Self { review_repo }
     }
 
@@ -143,11 +156,11 @@ impl ReviewService {
 
 /// Deck service - handles deck operations
 pub struct DeckService {
-    deck_repo: std::sync::Arc<dyn DeckRepository>,
+    deck_repo: Arc<dyn DeckRepository>,
 }
 
 impl DeckService {
-    pub fn new(deck_repo: std::sync::Arc<dyn DeckRepository>) -> Self {
+    pub fn new(deck_repo: Arc<dyn DeckRepository>) -> Self {
         Self { deck_repo }
     }
 
