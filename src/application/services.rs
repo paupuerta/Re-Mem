@@ -206,3 +206,18 @@ impl DeckService {
         self.deck_repo.delete(deck_id).await
     }
 }
+
+/// Auth service - handles registration and login
+pub struct AuthService {
+    pub register: Arc<super::use_cases::RegisterUserUseCase>,
+    pub login: Arc<super::use_cases::LoginUserUseCase>,
+}
+
+impl AuthService {
+    pub fn new(user_repo: Arc<dyn UserRepository>) -> Self {
+        Self {
+            register: Arc::new(super::use_cases::RegisterUserUseCase::new(user_repo.clone())),
+            login: Arc::new(super::use_cases::LoginUserUseCase::new(user_repo)),
+        }
+    }
+}

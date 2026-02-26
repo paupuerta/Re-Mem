@@ -25,11 +25,12 @@ impl PgUserRepository {
 impl UserRepository for PgUserRepository {
     async fn create(&self, user: &User) -> AppResult<Uuid> {
         sqlx::query_scalar(
-            "INSERT INTO users (id, email, name, created_at, updated_at) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+            "INSERT INTO users (id, email, name, password_hash, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
         )
         .bind(user.id)
         .bind(&user.email)
         .bind(&user.name)
+        .bind(&user.password_hash)
         .bind(user.created_at)
         .bind(user.updated_at)
         .fetch_one(&self.pool)
@@ -39,7 +40,7 @@ impl UserRepository for PgUserRepository {
 
     async fn find_by_id(&self, id: Uuid) -> AppResult<Option<User>> {
         let user = sqlx::query_as::<_, User>(
-            "SELECT id, email, name, created_at, updated_at FROM users WHERE id = $1",
+            "SELECT id, email, name, password_hash, created_at, updated_at FROM users WHERE id = $1",
         )
         .bind(id)
         .fetch_optional(&self.pool)
@@ -49,7 +50,7 @@ impl UserRepository for PgUserRepository {
 
     async fn find_by_email(&self, email: &str) -> AppResult<Option<User>> {
         let user = sqlx::query_as::<_, User>(
-            "SELECT id, email, name, created_at, updated_at FROM users WHERE email = $1",
+            "SELECT id, email, name, password_hash, created_at, updated_at FROM users WHERE email = $1",
         )
         .bind(email)
         .fetch_optional(&self.pool)
@@ -58,9 +59,10 @@ impl UserRepository for PgUserRepository {
     }
 
     async fn update(&self, user: &User) -> AppResult<()> {
-        sqlx::query("UPDATE users SET email = $1, name = $2, updated_at = $3 WHERE id = $4")
+        sqlx::query("UPDATE users SET email = $1, name = $2, password_hash = $3, updated_at = $4 WHERE id = $5")
             .bind(&user.email)
             .bind(&user.name)
+            .bind(&user.password_hash)
             .bind(user.updated_at)
             .bind(user.id)
             .execute(&self.pool)

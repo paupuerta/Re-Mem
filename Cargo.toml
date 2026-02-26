@@ -38,6 +38,10 @@ chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2.0.18"
 anyhow = "1.0.101"
 
+# Authentication
+argon2 = "0.5"
+jsonwebtoken = "9"
+
 # Logging and tracing
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
