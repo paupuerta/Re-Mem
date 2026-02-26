@@ -9,7 +9,7 @@ use tower_http::trace::TraceLayer;
 use super::handlers::*;
 use crate::application::{
     services::{CardService, DeckService, ReviewService, UserService},
-    use_cases::ReviewCardUseCase,
+    use_cases::{GetDeckStatsUseCase, GetUserStatsUseCase, ReviewCardUseCase},
 };
 use crate::domain::ports::AIValidator;
 use crate::domain::repositories::{CardRepository, ReviewLogRepository};
@@ -22,6 +22,8 @@ pub struct AppServices {
     pub deck_service: Arc<DeckService>,
     pub review_service: Arc<ReviewService>,
     pub review_card_use_case: Arc<dyn ReviewCardUseCaseTrait>,
+    pub get_user_stats_use_case: Arc<GetUserStatsUseCase>,
+    pub get_deck_stats_use_case: Arc<GetDeckStatsUseCase>,
 }
 
 /// Trait to allow dynamic dispatch for ReviewCardUseCase
@@ -87,6 +89,9 @@ pub fn create_router(app_services: AppServices) -> Router {
         )
         // API v1 routes (new intelligent review)
         .route("/api/v1/reviews", post(submit_intelligent_review))
+        // Statistics routes
+        .route("/api/v1/users/{user_id}/stats", get(get_user_stats))
+        .route("/api/v1/decks/{deck_id}/stats", get(get_deck_stats))
         // Middleware
         .with_state(app_services)
         .layer(TraceLayer::new_for_http())

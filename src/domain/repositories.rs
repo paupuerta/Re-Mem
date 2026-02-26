@@ -1,7 +1,7 @@
 use crate::AppResult;
 use uuid::Uuid;
 
-use super::entities::{Card, Deck, Review, ReviewLog, User};
+use super::entities::{Card, Deck, DeckStats, Review, ReviewLog, User, UserStats};
 
 /// Repository interface for User domain
 /// SOLID: Interface Segregation and Dependency Inversion
@@ -49,4 +49,30 @@ pub trait ReviewLogRepository: Send + Sync {
     async fn create(&self, review_log: &ReviewLog) -> AppResult<Uuid>;
     async fn find_by_card(&self, card_id: Uuid) -> AppResult<Vec<ReviewLog>>;
     async fn find_by_user(&self, user_id: Uuid) -> AppResult<Vec<ReviewLog>>;
+}
+
+/// Repository interface for UserStats domain
+#[async_trait::async_trait]
+pub trait UserStatsRepository: Send + Sync {
+    async fn get_or_create(&self, user_id: Uuid) -> AppResult<UserStats>;
+    async fn update_after_review(
+        &self,
+        user_id: Uuid,
+        is_correct: bool,
+        review_date: chrono::NaiveDate,
+    ) -> AppResult<()>;
+}
+
+/// Repository interface for DeckStats domain
+#[async_trait::async_trait]
+pub trait DeckStatsRepository: Send + Sync {
+    async fn get_or_create(&self, deck_id: Uuid, user_id: Uuid) -> AppResult<DeckStats>;
+    async fn update_after_review(
+        &self,
+        deck_id: Uuid,
+        is_correct: bool,
+        review_date: chrono::NaiveDate,
+    ) -> AppResult<()>;
+    async fn increment_card_count(&self, deck_id: Uuid) -> AppResult<()>;
+    async fn decrement_card_count(&self, deck_id: Uuid) -> AppResult<()>;
 }

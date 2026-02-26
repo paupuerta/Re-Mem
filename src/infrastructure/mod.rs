@@ -11,7 +11,9 @@
 
 pub mod ai_validator;
 pub mod database;
+pub mod event_handlers;
 pub mod repositories;
 
 pub use ai_validator::*;
+pub use event_handlers::*;
 pub use repositories::*;

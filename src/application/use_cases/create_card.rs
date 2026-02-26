@@ -9,7 +9,7 @@ use crate::{
         ports::EmbeddingService,
         repositories::CardRepository,
     },
-    shared::error::AppResult,
+    shared::{error::AppResult, event_bus::{DomainEvent, EventBus}},
 };
 
 /// Use case for creating a new card with AI-generated embeddings
@@ -20,6 +20,7 @@ where
 {
     card_repository: Arc<R>,
     embedding_service: Arc<E>,
+    event_bus: Arc<EventBus>,
 }
 
 impl<R, E> CreateCardUseCase<R, E>
@@ -27,10 +28,11 @@ where
     R: CardRepository,
     E: EmbeddingService,
 {
-    pub fn new(card_repository: Arc<R>, embedding_service: Arc<E>) -> Self {
+    pub fn new(card_repository: Arc<R>, embedding_service: Arc<E>, event_bus: Arc<EventBus>) -> Self {
         Self {
             card_repository,
             embedding_service,
+            event_bus,
         }
     }
 
@@ -64,6 +66,15 @@ where
 
         // Save to repository
         let card_id = self.card_repository.create(&card).await?;
+
+        // Publish CardCreated event
+        self.event_bus
+            .publish(DomainEvent::CardCreated {
+                card_id,
+                user_id,
+                deck_id,
+            })
+            .await;
 
         Ok(card_id)
     }
@@ -125,7 +136,8 @@ mod tests {
         let expected_card_id = Uuid::new_v4();
         let card_repo = Arc::new(MockCardRepository { card_id: expected_card_id });
         let embedding_service = Arc::new(MockEmbeddingService { should_succeed: true });
-        let use_case = CreateCardUseCase::new(card_repo, embedding_service);
+        let event_bus = Arc::new(EventBus::new());
+        let use_case = CreateCardUseCase::new(card_repo, embedding_service, event_bus);
 
         let user_id = Uuid::new_v4();
         let deck_id = Some(Uuid::new_v4());
@@ -143,7 +155,8 @@ mod tests {
         let expected_card_id = Uuid::new_v4();
         let card_repo = Arc::new(MockCardRepository { card_id: expected_card_id });
         let embedding_service = Arc::new(MockEmbeddingService { should_succeed: true });
-        let use_case = CreateCardUseCase::new(card_repo, embedding_service);
+        let event_bus = Arc::new(EventBus::new());
+        let use_case = CreateCardUseCase::new(card_repo, embedding_service, event_bus);
 
         let user_id = Uuid::new_v4();
         let question = "What is 2 + 2?".to_string();
@@ -160,7 +173,8 @@ mod tests {
         let expected_card_id = Uuid::new_v4();
         let card_repo = Arc::new(MockCardRepository { card_id: expected_card_id });
         let embedding_service = Arc::new(MockEmbeddingService { should_succeed: false });
-        let use_case = CreateCardUseCase::new(card_repo, embedding_service);
+        let event_bus = Arc::new(EventBus::new());
+        let use_case = CreateCardUseCase::new(card_repo, embedding_service, event_bus);
 
         let user_id = Uuid::new_v4();
         let question = "Test question".to_string();
