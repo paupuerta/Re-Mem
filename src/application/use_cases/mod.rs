@@ -13,6 +13,8 @@ pub mod get_decks;
 pub mod get_user;
 pub mod get_user_cards;
 pub mod get_user_stats;
+pub mod login_user;
+pub mod register_user;
 pub mod review_card;
 
 pub use create_card::CreateCardUseCase;
@@ -25,4 +27,6 @@ pub use get_decks::GetDecksUseCase;
 pub use get_user::GetUserUseCase;
 pub use get_user_cards::GetUserCardsUseCase;
 pub use get_user_stats::GetUserStatsUseCase;
+pub use login_user::LoginUserUseCase;
+pub use register_user::RegisterUserUseCase;
 pub use review_card::{ReviewCardUseCase, ReviewResult};

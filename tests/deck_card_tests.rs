@@ -20,7 +20,7 @@ mod deck_repository_tests {
             }
         }
 
-        async fn find_by_id(&self, id: Uuid) -> re_mem::AppResult<Option<Deck>> {
+        async fn find_by_id(&self, _id: Uuid) -> re_mem::AppResult<Option<Deck>> {
             if self.should_fail {
                 Err(re_mem::AppError::NotFound("Deck not found".to_string()))
             } else {

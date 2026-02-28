@@ -61,24 +61,24 @@ docker-up-build:
 	docker-compose up -d --build backend
 	@echo "? Docker services started"
 	@echo "  API: http://localhost:3000"
-	@echo "  pgAdmin: http://localhost:5050"
+	@echo "  pgAdmin: http://localhost:8050"
 	@echo "  Database: postgres://re_mem:password@localhost:5432/re_mem"
 
 docker-up:
 	docker-compose up -d
 	@echo "? Docker services started"
 	@echo "  API: http://localhost:3000"
-	@echo "  pgAdmin: http://localhost:5050"
+	@echo "  pgAdmin: http://localhost:8050"
 	@echo "  Database: postgres://re_mem:password@localhost:5432/re_mem"
 
 docker-down:
 	docker-compose down
 
 dev:
-	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build backend
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 	@echo "  Dev server starting with hot-reload"
 	@echo "  API: http://localhost:3000"
-	@echo "  pgAdmin: http://localhost:5050"
+	@echo "  pgAdmin: http://localhost:8050"
 	@echo "  Logs: make dev-logs"
 
 dev-down:

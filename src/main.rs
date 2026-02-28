@@ -1,5 +1,5 @@
 use re_mem::{
-    application::services::{CardService, DeckService, ReviewService, UserService},
+    application::services::{AuthService, CardService, DeckService, ReviewService, UserService},
     application::use_cases::{GetDeckStatsUseCase, GetUserStatsUseCase, ReviewCardUseCase},
     infrastructure::{
         ai_validator::{FallbackValidator, OpenAIValidator},
@@ -101,6 +101,11 @@ async fn main() {
             }
         };
 
+    // Initialize auth service
+    let auth_service = Arc::new(AuthService::new(
+        Arc::new(PgUserRepository::new(db_pool.clone())),
+    ));
+
     let app_services = AppServices {
         user_service,
         card_service,
@@ -109,6 +114,7 @@ async fn main() {
         review_card_use_case,
         get_user_stats_use_case,
         get_deck_stats_use_case,
+        auth_service,
     };
 
     // Create router

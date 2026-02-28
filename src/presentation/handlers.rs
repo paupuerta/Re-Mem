@@ -192,3 +192,25 @@ pub async fn get_deck_stats(
         Err(err) => err.into_response(),
     }
 }
+
+/// Register handler — POST /api/v1/auth/register
+pub async fn register(
+    State(services): State<AppServices>,
+    Json(req): Json<crate::application::dtos::RegisterRequest>,
+) -> Response {
+    match services.auth_service.register.execute(req).await {
+        Ok(res) => (StatusCode::CREATED, Json(res)).into_response(),
+        Err(err) => err.into_response(),
+    }
+}
+
+/// Login handler — POST /api/v1/auth/login
+pub async fn login(
+    State(services): State<AppServices>,
+    Json(req): Json<crate::application::dtos::LoginRequest>,
+) -> Response {
+    match services.auth_service.login.execute(req).await {
+        Ok(res) => Json(res).into_response(),
+        Err(err) => err.into_response(),
+    }
+}
