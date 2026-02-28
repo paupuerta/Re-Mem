@@ -51,3 +51,34 @@ pub fn decode_jwt(token: &str) -> AppResult<Uuid> {
     Uuid::parse_str(&data.claims.sub)
         .map_err(|_| AppError::AuthenticationError("Invalid user id in token".to_string()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_encode_decode_round_trip() {
+        let user_id = Uuid::new_v4();
+        let token = encode_jwt(user_id).expect("encode should succeed");
+        let decoded = decode_jwt(&token).expect("decode should succeed");
+        assert_eq!(user_id, decoded);
+    }
+
+    #[test]
+    fn test_decode_invalid_token_returns_error() {
+        let result = decode_jwt("not.a.valid.token");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            AppError::AuthenticationError(_) => {}
+            e => panic!("Expected AuthenticationError, got: {e:?}"),
+        }
+    }
+
+    #[test]
+    fn test_decode_tampered_token_returns_error() {
+        let user_id = Uuid::new_v4();
+        let token = encode_jwt(user_id).expect("encode should succeed");
+        let tampered = format!("{token}tampered");
+        assert!(decode_jwt(&tampered).is_err());
+    }
+}

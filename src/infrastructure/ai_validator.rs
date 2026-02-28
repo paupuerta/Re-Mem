@@ -1,9 +1,12 @@
 use anyhow::{Context, Result};
 use async_openai::{
+    config::OpenAIConfig,
     types::{
-        ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
-        ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
-        CreateEmbeddingRequestArgs,
+        chat::{
+            ChatCompletionRequestMessage, ChatCompletionRequestSystemMessage,
+            ChatCompletionRequestUserMessage, CreateChatCompletionRequest,
+        },
+        embeddings::CreateEmbeddingRequestArgs,
     },
     Client,
 };
@@ -13,7 +16,7 @@ use crate::domain::ports::{AIValidator, EmbeddingService, ValidationMethod, Vali
 
 /// OpenAI-based AI validator with cascading validation strategy
 pub struct OpenAIValidator {
-    client: Client<async_openai::config::OpenAIConfig>,
+    client: Client<OpenAIConfig>,
     embedding_model: String,
     chat_model: String,
     _exact_match_threshold: f32,
@@ -22,7 +25,7 @@ pub struct OpenAIValidator {
 
 impl OpenAIValidator {
     pub fn new(api_key: String) -> Self {
-        let config = async_openai::config::OpenAIConfig::new().with_api_key(api_key);
+        let config = OpenAIConfig::new().with_api_key(api_key);
         let client = Client::with_config(config);
 
         Self {
@@ -50,10 +53,14 @@ impl OpenAIValidator {
     async fn check_embedding_similarity(&self, expected: &str, user_answer: &str) -> Result<f32> {
         let request = CreateEmbeddingRequestArgs::default()
             .model(&self.embedding_model)
-            .input(vec![expected, user_answer])
+            .input(vec![expected.to_string(), user_answer.to_string()])
             .build()?;
 
-        let response = self.client.embeddings().create(request).await?;
+        let response = self
+            .client
+            .embeddings()
+            .create(request)
+            .await?;
 
         if response.data.len() < 2 {
             return Ok(0.0);
@@ -89,23 +96,26 @@ Respond with ONLY a number between 0.0 and 1.0, nothing else."#;
             question, expected, user_answer
         );
 
-        let request = CreateChatCompletionRequestArgs::default()
-            .model(&self.chat_model)
-            .messages(vec![
+        let request = CreateChatCompletionRequest {
+            model: self.chat_model.clone(),
+            messages: vec![
                 ChatCompletionRequestMessage::System(
-                    ChatCompletionRequestSystemMessageArgs::default()
-                        .content(system_prompt)
-                        .build()?,
+                    ChatCompletionRequestSystemMessage {
+                        content: system_prompt.into(),
+                        name: None,
+                    },
                 ),
                 ChatCompletionRequestMessage::User(
-                    ChatCompletionRequestUserMessageArgs::default()
-                        .content(user_prompt)
-                        .build()?,
+                    ChatCompletionRequestUserMessage {
+                        content: user_prompt.into(),
+                        name: None,
+                    },
                 ),
-            ])
-            .temperature(0.0)
-            .max_tokens(10u32)
-            .build()?;
+            ],
+            temperature: Some(0.0),
+            max_completion_tokens: Some(10),
+            ..Default::default()
+        };
 
         let response = self.client.chat().create(request).await?;
 
@@ -243,7 +253,7 @@ impl EmbeddingService for OpenAIValidator {
     async fn generate_embedding(&self, text: &str) -> Result<Vec<f32>> {
         let request = CreateEmbeddingRequestArgs::default()
             .model(&self.embedding_model)
-            .input(vec![text])
+            .input(text)
             .build()?;
 
         let response = self
