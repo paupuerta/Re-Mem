@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Multipart, Path, State},
     http::StatusCode,
     response::{IntoResponse, Response},
     Json,
@@ -7,7 +7,9 @@ use axum::{
 use uuid::Uuid;
 
 use crate::application::dtos::*;
+use crate::presentation::middleware::auth::AuthenticatedUser;
 use crate::presentation::router::AppServices;
+use crate::shared::error::AppError;
 
 /// Health check endpoint
 pub async fn health_check() -> Json<serde_json::Value> {
@@ -213,4 +215,81 @@ pub async fn login(
         Ok(res) => Json(res).into_response(),
         Err(err) => err.into_response(),
     }
+}
+
+/// Import TSV handler — POST /api/v1/decks/{deck_id}/import/tsv
+///
+/// Accepts `multipart/form-data` with a single `file` field containing a UTF-8
+/// TSV file (lines of `front\tback`). Returns an `ImportResult` JSON.
+pub async fn import_tsv(
+    Path(deck_id): Path<Uuid>,
+    State(services): State<AppServices>,
+    auth: AuthenticatedUser,
+    mut multipart: Multipart,
+) -> Response {
+    let file_bytes = match read_multipart_file(&mut multipart).await {
+        Ok(Some(b)) => b,
+        Ok(None) => {
+            return AppError::ValidationError("No 'file' field found in request".to_string())
+                .into_response()
+        }
+        Err(e) => return AppError::into_response(e),
+    };
+
+    match services
+        .import_tsv_use_case
+        .execute(auth.user_id, deck_id, file_bytes)
+        .await
+    {
+        Ok(result) => (StatusCode::OK, Json(result)).into_response(),
+        Err(err) => err.into_response(),
+    }
+}
+
+/// Import Anki handler — POST /api/v1/decks/import/anki
+///
+/// Accepts `multipart/form-data` with a single `file` field containing a `.apkg`
+/// archive. Creates a new deck from the Anki deck name and returns `AnkiImportResult`.
+pub async fn import_anki(
+    State(services): State<AppServices>,
+    auth: AuthenticatedUser,
+    mut multipart: Multipart,
+) -> Response {
+    let file_bytes = match read_multipart_file(&mut multipart).await {
+        Ok(Some(b)) => b,
+        Ok(None) => {
+            return AppError::ValidationError("No 'file' field found in request".to_string())
+                .into_response()
+        }
+        Err(e) => return AppError::into_response(e),
+    };
+
+    match services
+        .import_anki_use_case
+        .execute(auth.user_id, file_bytes)
+        .await
+    {
+        Ok(result) => (StatusCode::CREATED, Json(result)).into_response(),
+        Err(err) => err.into_response(),
+    }
+}
+
+/// Reads the first `file` field from a multipart form, enforcing a 10 MB size limit.
+async fn read_multipart_file(
+    multipart: &mut Multipart,
+) -> Result<Option<bytes::Bytes>, AppError> {
+    while let Ok(Some(field)) = multipart.next_field().await {
+        if field.name() == Some("file") {
+            let bytes = field.bytes().await.map_err(|e| {
+                AppError::ValidationError(format!("Failed to read uploaded file: {}", e))
+            })?;
+            if bytes.len() > 10 * 1024 * 1024 {
+                return Err(AppError::ValidationError(
+                    "File exceeds the 10 MB size limit".to_string(),
+                ));
+            }
+            return Ok(Some(bytes));
+        }
+    }
+    Ok(None)
 }

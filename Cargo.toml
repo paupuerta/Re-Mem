@@ -10,7 +10,7 @@ description = "Language learning application backend using FSRS and AI-based ans
 tokio = { version = "1.49.0", features = ["full"] }
 
 # Web framework
-axum = "0.8.8"
+axum = { version = "0.8.8", features = ["multipart"] }
 tower = "0.5.3"
 tower-http = { version = "0.6.8", features = ["trace", "cors"] }
 
@@ -22,7 +22,7 @@ serde_json = "1.0.149"
 async-trait = "0.1.89"
 
 # Database
-sqlx = { version = "0.8.6", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono"] }
+sqlx = { version = "0.8.6", features = ["runtime-tokio-native-tls", "postgres", "sqlite", "uuid", "chrono"] }
 pgvector = { version = "0.4.1", features = ["sqlx"] }
 
 # Spaced repetition (to be integrated in Phase 2)
@@ -55,6 +55,12 @@ http = "1.4.0"
 # OpenAI client
 async-openai = { version = "0.33.0", features = ["chat-completion", "embedding"] }
 reqwest = { version = "0.13.2", features = ["json"] }
+
+# Deck import
+zip = "2"
+ammonia = "4"
+tempfile = "3"
+bytes = "1"
 
 [dev-dependencies]
 # Testing

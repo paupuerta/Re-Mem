@@ -1,6 +1,6 @@
 use re_mem::{
     application::services::{AuthService, CardService, DeckService, ReviewService, UserService},
-    application::use_cases::{GetDeckStatsUseCase, GetUserStatsUseCase, ReviewCardUseCase},
+    application::use_cases::{GetDeckStatsUseCase, GetUserStatsUseCase, ImportAnkiUseCase, ImportTsvUseCase, ReviewCardUseCase},
     infrastructure::{
         ai_validator::{FallbackValidator, OpenAIValidator},
         database::{init_db_pool, DbConfig},
@@ -9,6 +9,10 @@ use re_mem::{
             PgReviewRepository, PgUserRepository, PgUserStatsRepository,
         },
         StatisticsEventHandler,
+    },
+    domain::{
+        ports::EmbeddingService,
+        repositories::{CardRepository, DeckRepository, DeckStatsRepository},
     },
     presentation::router::{create_router, AppServices, ReviewCardUseCaseTrait},
     shared::event_bus::EventBus,
@@ -75,31 +79,54 @@ async fn main() {
         Arc::new(GetDeckStatsUseCase::new(deck_stats_repo.clone(), deck_repo));
 
     // Initialize AI Validator and Review Card Use Case
-    let review_card_use_case: Arc<dyn ReviewCardUseCaseTrait> =
-        match std::env::var("OPENAI_API_KEY") {
-            Ok(api_key) => {
-                tracing::info!("Using OpenAI validator");
-                let validator = Arc::new(OpenAIValidator::new(api_key));
-                Arc::new(ReviewCardUseCase::new(
-                    card_repo,
-                    review_log_repo,
-                    validator,
-                    event_bus,
-                ))
-            }
-            Err(_) => {
-                tracing::warn!(
-                    "OPENAI_API_KEY not set ? using FallbackValidator (word-overlap scoring)"
-                );
-                let validator = Arc::new(FallbackValidator);
-                Arc::new(ReviewCardUseCase::new(
-                    card_repo,
-                    review_log_repo,
-                    validator,
-                    event_bus,
-                ))
-            }
-        };
+    let (review_card_use_case, embedding_service): (
+        Arc<dyn ReviewCardUseCaseTrait>,
+        Arc<dyn EmbeddingService>,
+    ) = match std::env::var("OPENAI_API_KEY") {
+        Ok(api_key) => {
+            tracing::info!("Using OpenAI validator");
+            let validator = Arc::new(OpenAIValidator::new(api_key));
+            let embedding: Arc<dyn EmbeddingService> = validator.clone();
+            let uc = Arc::new(ReviewCardUseCase::new(
+                card_repo.clone(),
+                review_log_repo,
+                validator,
+                event_bus,
+            )) as Arc<dyn ReviewCardUseCaseTrait>;
+            (uc, embedding)
+        }
+        Err(_) => {
+            tracing::warn!(
+                "OPENAI_API_KEY not set — using FallbackValidator (word-overlap scoring)"
+            );
+            let validator = Arc::new(FallbackValidator);
+            let embedding: Arc<dyn EmbeddingService> = Arc::new(FallbackValidator);
+            let uc = Arc::new(ReviewCardUseCase::new(
+                card_repo.clone(),
+                review_log_repo,
+                validator,
+                event_bus,
+            )) as Arc<dyn ReviewCardUseCaseTrait>;
+            (uc, embedding)
+        }
+    };
+
+    // Import use cases (cast concrete repos to trait objects)
+    let card_repo_dyn: Arc<dyn CardRepository> = card_repo.clone();
+    let deck_repo_dyn: Arc<dyn DeckRepository> = Arc::new(PgDeckRepository::new(db_pool.clone()));
+    let deck_stats_repo_dyn: Arc<dyn DeckStatsRepository> = deck_stats_repo.clone();
+
+    let import_tsv_use_case = Arc::new(ImportTsvUseCase::new(
+        card_repo_dyn.clone(),
+        deck_stats_repo_dyn.clone(),
+        embedding_service.clone(),
+    ));
+    let import_anki_use_case = Arc::new(ImportAnkiUseCase::new(
+        card_repo_dyn,
+        deck_repo_dyn,
+        deck_stats_repo_dyn,
+        embedding_service,
+    ));
 
     // Initialize auth service
     let auth_service = Arc::new(AuthService::new(
@@ -115,6 +142,8 @@ async fn main() {
         get_user_stats_use_case,
         get_deck_stats_use_case,
         auth_service,
+        import_tsv_use_case,
+        import_anki_use_case,
     };
 
     // Create router
