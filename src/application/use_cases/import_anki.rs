@@ -252,6 +252,287 @@ async fn extract_deck_name(pool: &SqlitePool) -> String {
     "Imported Deck".to_string()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use async_trait::async_trait;
+    use std::io::{Cursor, Write};
+
+    use crate::{
+        domain::{
+            entities::{Card, Deck, DeckStats},
+            repositories::{CardRepository, DeckRepository, DeckStatsRepository},
+        },
+        AppError,
+    };
+
+    // ── Mocks ──────────────────────────────────────────────────────────────────
+
+    struct MockCardRepo;
+
+    #[async_trait]
+    impl CardRepository for MockCardRepo {
+        async fn create(&self, card: &Card) -> AppResult<Uuid> {
+            Ok(card.id)
+        }
+        async fn bulk_create(&self, cards: &[Card]) -> AppResult<Vec<Uuid>> {
+            Ok(cards.iter().map(|c| c.id).collect())
+        }
+        async fn find_by_id(&self, _id: Uuid) -> AppResult<Option<Card>> {
+            Ok(None)
+        }
+        async fn find_by_user(&self, _user_id: Uuid) -> AppResult<Vec<Card>> {
+            Ok(vec![])
+        }
+        async fn find_by_deck(&self, _deck_id: Uuid) -> AppResult<Vec<Card>> {
+            Ok(vec![])
+        }
+        async fn update(&self, _card: &Card) -> AppResult<()> {
+            Ok(())
+        }
+        async fn update_embedding(&self, _id: Uuid, _embedding: Vec<f32>) -> AppResult<()> {
+            Ok(())
+        }
+        async fn delete(&self, _id: Uuid) -> AppResult<()> {
+            Ok(())
+        }
+    }
+
+    struct MockDeckRepo;
+
+    #[async_trait]
+    impl DeckRepository for MockDeckRepo {
+        async fn create(&self, deck: &Deck) -> AppResult<Uuid> {
+            Ok(deck.id)
+        }
+        async fn find_by_id(&self, _id: Uuid) -> AppResult<Option<Deck>> {
+            Ok(None)
+        }
+        async fn find_by_user(&self, _user_id: Uuid) -> AppResult<Vec<Deck>> {
+            Ok(vec![])
+        }
+        async fn update(&self, _deck: &Deck) -> AppResult<()> {
+            Ok(())
+        }
+        async fn delete(&self, _id: Uuid) -> AppResult<()> {
+            Ok(())
+        }
+    }
+
+    struct MockDeckStatsRepo;
+
+    #[async_trait]
+    impl DeckStatsRepository for MockDeckStatsRepo {
+        async fn get_or_create(&self, deck_id: Uuid, user_id: Uuid) -> AppResult<DeckStats> {
+            Ok(DeckStats::new(deck_id, user_id))
+        }
+        async fn update_after_review(&self, _deck_id: Uuid, _is_correct: bool, _review_date: chrono::NaiveDate) -> AppResult<()> {
+            Ok(())
+        }
+        async fn increment_card_count(&self, _deck_id: Uuid) -> AppResult<()> {
+            Ok(())
+        }
+        async fn decrement_card_count(&self, _deck_id: Uuid) -> AppResult<()> {
+            Ok(())
+        }
+        async fn add_to_card_count(&self, _deck_id: Uuid, _count: i32) -> AppResult<()> {
+            Ok(())
+        }
+    }
+
+    struct MockEmbeddingService;
+
+    #[async_trait]
+    impl crate::domain::ports::EmbeddingService for MockEmbeddingService {
+        async fn generate_embedding(&self, _text: &str) -> anyhow::Result<Vec<f32>> {
+            Ok(vec![0.1, 0.2, 0.3])
+        }
+    }
+
+    fn make_use_case() -> ImportAnkiUseCase {
+        ImportAnkiUseCase::new(
+            Arc::new(MockCardRepo),
+            Arc::new(MockDeckRepo),
+            Arc::new(MockDeckStatsRepo),
+            Arc::new(MockEmbeddingService),
+        )
+    }
+
+    /// Build a minimal `.apkg` (ZIP containing a SQLite DB) in memory.
+    /// The SQLite DB has a `notes` table with the given `(front, back)` pairs.
+    fn build_test_apkg(notes: &[(&str, &str)], deck_name: Option<&str>) -> Vec<u8> {
+
+        // 1. Create an in-memory SQLite DB via a temp file
+        let tmp = tempfile::Builder::new()
+            .suffix(".db")
+            .tempfile()
+            .expect("tempfile");
+        let path = tmp.path().to_owned();
+
+        // Use the rusqlite-independent sqlite3 binary isn't available in tests.
+        // We use sqlx's runtime to create the DB — but since this is synchronous
+        // test code, use the standard library's approach via the `sqlite3` C API
+        // wrapped by sqlx is async. Instead, write raw SQLite bytes directly.
+        // A simpler approach: use `std::process::Command` is brittle.
+        //
+        // We rely on the fact that sqlx sqlite feature is available.
+        // Use a blocking Tokio runtime inline.
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+            let opts = sqlx::sqlite::SqliteConnectOptions::new()
+                .filename(&path)
+                .create_if_missing(true);
+            let pool = sqlx::SqlitePool::connect_with(opts).await.unwrap();
+
+            sqlx::query(
+                "CREATE TABLE notes (id INTEGER PRIMARY KEY, flds TEXT NOT NULL)",
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+
+            for (front, back) in notes {
+                let flds = format!("{}\x1f{}", front, back);
+                sqlx::query("INSERT INTO notes (flds) VALUES (?)")
+                    .bind(flds)
+                    .execute(&pool)
+                    .await
+                    .unwrap();
+            }
+
+            if let Some(name) = deck_name {
+                let decks_json = format!(
+                    r#"{{"1":{{"id":1,"name":"{}","usn":0}}}}"#,
+                    name
+                );
+                sqlx::query("CREATE TABLE col (id INTEGER PRIMARY KEY, decks TEXT)")
+                    .execute(&pool)
+                    .await
+                    .unwrap();
+                sqlx::query("INSERT INTO col (id, decks) VALUES (1, ?)")
+                    .bind(decks_json)
+                    .execute(&pool)
+                    .await
+                    .unwrap();
+            }
+
+            pool.close().await;
+            })
+        });
+
+        let db_bytes = std::fs::read(&path).expect("read tmp db");
+
+        // 2. Zip the SQLite DB into an in-memory ZIP archive as `collection.anki2`
+        let mut zip_buf: Vec<u8> = Vec::new();
+        {
+            let cursor = Cursor::new(&mut zip_buf);
+            let mut zip = zip::ZipWriter::new(cursor);
+            let opts: zip::write::FileOptions<'_, ()> =
+                zip::write::FileOptions::default()
+                    .compression_method(zip::CompressionMethod::Stored);
+            zip.start_file("collection.anki2", opts).unwrap();
+            zip.write_all(&db_bytes).unwrap();
+            zip.finish().unwrap();
+        }
+
+        zip_buf
+    }
+
+    // ── Tests ──────────────────────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_import_anki_file_too_large() {
+        let big = vec![0u8; MAX_FILE_BYTES + 1];
+        let result = make_use_case()
+            .execute(Uuid::new_v4(), Bytes::from(big))
+            .await;
+        assert!(matches!(result, Err(AppError::ValidationError(_))));
+    }
+
+    #[tokio::test]
+    async fn test_import_anki_invalid_zip() {
+        let result = make_use_case()
+            .execute(Uuid::new_v4(), Bytes::from("not a zip at all"))
+            .await;
+        assert!(matches!(result, Err(AppError::ValidationError(_))));
+    }
+
+    #[tokio::test]
+    async fn test_import_anki_zip_missing_collection() {
+        // A valid ZIP but no collection.anki2 / collection.anki21 entry
+        let mut zip_buf: Vec<u8> = Vec::new();
+        {
+            let cursor = Cursor::new(&mut zip_buf);
+            let mut zip = zip::ZipWriter::new(cursor);
+            let opts: zip::write::FileOptions<'_, ()> =
+                zip::write::FileOptions::default()
+                    .compression_method(zip::CompressionMethod::Stored);
+            zip.start_file("media", opts).unwrap();
+            zip.write_all(b"{}").unwrap();
+            zip.finish().unwrap();
+        }
+        let result = make_use_case()
+            .execute(Uuid::new_v4(), Bytes::from(zip_buf))
+            .await;
+        assert!(matches!(result, Err(AppError::ValidationError(_))));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_import_anki_happy_path() {
+        let notes = vec![
+            ("Hello", "Hola"),
+            ("World", "Mundo"),
+            ("Cat", "Gato"),
+        ];
+        let apkg = build_test_apkg(&notes, Some("Spanish Basics"));
+        let result = make_use_case()
+            .execute(Uuid::new_v4(), Bytes::from(apkg))
+            .await;
+        assert!(result.is_ok(), "{:?}", result.err());
+        let r = result.unwrap();
+        assert_eq!(r.cards_imported, 3);
+        assert_eq!(r.cards_skipped, 0);
+        assert_eq!(r.deck_name, "Spanish Basics");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_import_anki_strips_html() {
+        let notes = vec![("<b>Bold front</b>", "<i>Italic back</i>")];
+        let apkg = build_test_apkg(&notes, None);
+        let result = make_use_case()
+            .execute(Uuid::new_v4(), Bytes::from(apkg))
+            .await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().cards_imported, 1);
+        // strip_html is also tested directly below
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_import_anki_empty_deck() {
+        let apkg = build_test_apkg(&[], Some("Empty"));
+        let result = make_use_case()
+            .execute(Uuid::new_v4(), Bytes::from(apkg))
+            .await;
+        assert!(result.is_ok());
+        let r = result.unwrap();
+        assert_eq!(r.cards_imported, 0);
+    }
+
+    #[test]
+    fn test_strip_html_removes_tags() {
+        assert_eq!(strip_html("<b>Bold</b>"), "Bold");
+        assert_eq!(strip_html("<i>Italic</i> text"), "Italic text");
+        assert_eq!(strip_html("No tags here"), "No tags here");
+        assert_eq!(strip_html("<div><p>Nested</p></div>"), "Nested");
+        assert_eq!(strip_html("  <br>  "), "");
+    }
+
+    #[test]
+    fn test_strip_html_empty_input() {
+        assert_eq!(strip_html(""), "");
+    }
+}
+
 /// Strip HTML tags using `ammonia` (allow no tags → only text content remains).
 fn strip_html(html: &str) -> String {
     ammonia::Builder::new()
