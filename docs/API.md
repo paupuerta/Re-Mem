@@ -164,7 +164,64 @@ To be implemented in Phase 2.
 
 To be implemented in future phase for event notifications.
 
+### Import (Deck Import — Iteration 4)
+
+All import endpoints require `Authorization: Bearer <jwt>` header.
+
+#### Import from TSV file
+
+```
+POST /api/v1/decks/{deck_id}/import/tsv
+Content-Type: multipart/form-data
+
+Form fields:
+  file: <.txt or .tsv file>
+
+Constraints:
+  - Max file size: 10 MB
+  - Max cards per import: 2 000
+  - Line format: "<front>\t<back>" (lines without a tab are silently skipped)
+
+Response: 200 OK
+{
+    "cards_imported": 42,
+    "cards_skipped": 3
+}
+```
+
+AI embeddings are generated asynchronously after the response is returned. Cards with pending embeddings fall back to string-similarity (Levenshtein) during review until embeddings are ready.
+
+#### Import from Anki (.apkg)
+
+```
+POST /api/v1/decks/import/anki
+Content-Type: multipart/form-data
+
+Form fields:
+  file: <.apkg file>
+
+Constraints:
+  - Max file size: 10 MB
+  - Max cards per import: 2 000
+  - Basic HTML is stripped from card fields
+  - Media files and previous Anki scheduling history are ignored
+  - A new deck is created automatically using the name from the .apkg
+
+Response: 200 OK
+{
+    "deck_id": "550e8400-e29b-41d4-a716-446655440010",
+    "deck_name": "Japanese N5 Vocabulary",
+    "cards_imported": 150,
+    "cards_skipped": 2
+}
+```
+
 ## Changelog
+
+### v0.4.0 (Iteration 4 — Deck Import)
+- TSV file import: `POST /api/v1/decks/{deck_id}/import/tsv`
+- Anki `.apkg` import: `POST /api/v1/decks/import/anki`
+- Background AI embedding generation for imported cards
 
 ### v0.1.0 (MVP)
 - Basic CRUD operations for Users

@@ -85,11 +85,19 @@ mod tests {
                 .collect())
         }
 
+        async fn bulk_create(&self, cards: &[Card]) -> AppResult<Vec<Uuid>> {
+            Ok(cards.iter().map(|c| c.id).collect())
+        }
+
         async fn update(&self, card: &Card) -> AppResult<()> {
             let mut cards = self.cards.lock().unwrap();
             if let Some(c) = cards.iter_mut().find(|c| c.id == card.id) {
                 *c = card.clone();
             }
+            Ok(())
+        }
+
+        async fn update_embedding(&self, _id: Uuid, _embedding: Vec<f32>) -> AppResult<()> {
             Ok(())
         }
 

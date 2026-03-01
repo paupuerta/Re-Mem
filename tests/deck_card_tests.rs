@@ -129,7 +129,15 @@ mod card_repository_tests {
             Ok(self.cards.iter().filter(|c| c.deck_id == Some(deck_id)).cloned().collect())
         }
 
+        async fn bulk_create(&self, cards: &[Card]) -> re_mem::AppResult<Vec<Uuid>> {
+            Ok(cards.iter().map(|c| c.id).collect())
+        }
+
         async fn update(&self, _card: &Card) -> re_mem::AppResult<()> {
+            Ok(())
+        }
+
+        async fn update_embedding(&self, _id: Uuid, _embedding: Vec<f32>) -> re_mem::AppResult<()> {
             Ok(())
         }
 

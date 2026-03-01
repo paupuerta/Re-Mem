@@ -130,6 +130,10 @@ mod tests {
         async fn decrement_card_count(&self, _deck_id: Uuid) -> AppResult<()> {
             Ok(())
         }
+
+        async fn add_to_card_count(&self, _deck_id: Uuid, _count: i32) -> AppResult<()> {
+            Ok(())
+        }
     }
 
     #[tokio::test]

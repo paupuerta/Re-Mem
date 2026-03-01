@@ -11,7 +11,7 @@ use super::handlers::*;
 use super::middleware::auth::require_auth;
 use crate::application::{
     services::{AuthService, CardService, DeckService, ReviewService, UserService},
-    use_cases::{GetDeckStatsUseCase, GetUserStatsUseCase, ReviewCardUseCase},
+    use_cases::{GetDeckStatsUseCase, GetUserStatsUseCase, ImportAnkiUseCase, ImportTsvUseCase, ReviewCardUseCase},
 };
 use crate::domain::ports::AIValidator;
 use crate::domain::repositories::{CardRepository, ReviewLogRepository};
@@ -27,6 +27,8 @@ pub struct AppServices {
     pub get_user_stats_use_case: Arc<GetUserStatsUseCase>,
     pub get_deck_stats_use_case: Arc<GetDeckStatsUseCase>,
     pub auth_service: Arc<AuthService>,
+    pub import_tsv_use_case: Arc<ImportTsvUseCase>,
+    pub import_anki_use_case: Arc<ImportAnkiUseCase>,
 }
 
 /// Trait to allow dynamic dispatch for ReviewCardUseCase
@@ -91,6 +93,9 @@ pub fn create_router(app_services: AppServices) -> Router {
         )
         // API v1 routes
         .route("/api/v1/reviews", post(submit_intelligent_review))
+        // Import routes
+        .route("/api/v1/decks/{deck_id}/import/tsv", post(import_tsv))
+        .route("/api/v1/decks/import/anki", post(import_anki))
         // Statistics routes
         .route("/api/v1/users/{user_id}/stats", get(get_user_stats))
         .route("/api/v1/decks/{deck_id}/stats", get(get_deck_stats))

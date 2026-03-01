@@ -271,6 +271,13 @@ impl EmbeddingService for OpenAIValidator {
     }
 }
 
+#[async_trait]
+impl EmbeddingService for FallbackValidator {
+    async fn generate_embedding(&self, _text: &str) -> Result<Vec<f32>> {
+        anyhow::bail!("Embedding generation not available without OPENAI_API_KEY")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

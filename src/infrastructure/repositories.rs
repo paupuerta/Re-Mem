@@ -114,6 +114,49 @@ impl CardRepository for PgCardRepository {
         .map_err(Into::into)
     }
 
+    async fn bulk_create(&self, cards: &[Card]) -> AppResult<Vec<Uuid>> {
+        let mut tx = self.pool.begin().await?;
+        let mut ids = Vec::with_capacity(cards.len());
+
+        for card in cards {
+            let fsrs_json = serde_json::to_value(&card.fsrs_state)?;
+            let embedding_vec = card.answer_embedding.as_ref().map(|v| Vector::from(v.clone()));
+
+            let id: Uuid = sqlx::query_scalar(
+                "INSERT INTO cards (id, user_id, deck_id, question, answer, answer_embedding, fsrs_state, created_at, updated_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
+            )
+            .bind(card.id)
+            .bind(card.user_id)
+            .bind(card.deck_id)
+            .bind(&card.question)
+            .bind(&card.answer)
+            .bind(embedding_vec)
+            .bind(fsrs_json)
+            .bind(card.created_at)
+            .bind(card.updated_at)
+            .fetch_one(&mut *tx)
+            .await?;
+
+            ids.push(id);
+        }
+
+        tx.commit().await?;
+        Ok(ids)
+    }
+
+    async fn update_embedding(&self, id: Uuid, embedding: Vec<f32>) -> AppResult<()> {
+        let embedding_vec = Vector::from(embedding);
+        sqlx::query(
+            "UPDATE cards SET answer_embedding = $1, updated_at = NOW() WHERE id = $2",
+        )
+        .bind(embedding_vec)
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
     async fn find_by_id(&self, id: Uuid) -> AppResult<Option<Card>> {
         let row = sqlx::query_as::<
             _,
@@ -630,6 +673,17 @@ impl DeckStatsRepository for PgDeckStatsRepository {
                  updated_at = NOW()
              WHERE deck_id = $1"
         )
+        .bind(deck_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    async fn add_to_card_count(&self, deck_id: Uuid, count: i32) -> AppResult<()> {
+        sqlx::query(
+            "UPDATE deck_stats SET total_cards = total_cards + $1, updated_at = NOW() WHERE deck_id = $2",
+        )
+        .bind(count)
         .bind(deck_id)
         .execute(&self.pool)
         .await?;

@@ -107,7 +107,15 @@ mod tests {
             Ok(vec![])
         }
 
+        async fn bulk_create(&self, cards: &[Card]) -> AppResult<Vec<Uuid>> {
+            Ok(cards.iter().map(|_| Uuid::new_v4()).collect())
+        }
+
         async fn update(&self, _card: &Card) -> AppResult<()> {
+            Ok(())
+        }
+
+        async fn update_embedding(&self, _id: Uuid, _embedding: Vec<f32>) -> AppResult<()> {
             Ok(())
         }
 
