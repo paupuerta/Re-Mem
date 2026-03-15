@@ -96,6 +96,10 @@ Response: 201 Created
 ```
 GET /users/{user_id}/cards
 
+Query parameters:
+  limit: integer, optional
+  offset: integer, optional
+
 Response: 200 OK
 [
     {
@@ -232,3 +236,23 @@ Response: 200 OK
 ---
 
 For full interactive documentation, visit `/docs/swagger-ui` when server is running.
+
+#### List Deck Cards
+```
+GET /decks/{deck_id}/cards
+
+Query parameters:
+  limit: integer, optional
+  offset: integer, optional
+
+Response: 200 OK
+[
+    {
+        "id": "550e8400-e29b-41d4-a716-446655440001",
+        "user_id": "550e8400-e29b-41d4-a716-446655440000",
+        "deck_id": "550e8400-e29b-41d4-a716-446655440010",
+        "question": "What is the capital of France?",
+        "answer": "Paris"
+    }
+]
+```

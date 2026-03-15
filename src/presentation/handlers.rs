@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Multipart, Path, State},
+    extract::{Multipart, Path, Query, State},
     http::StatusCode,
     response::{IntoResponse, Response},
     Json,
@@ -50,9 +50,18 @@ pub async fn create_card(
 /// Get user cards handler
 pub async fn get_user_cards(
     Path(user_id): Path<Uuid>,
+    Query(query): Query<CardListQuery>,
     State(services): State<AppServices>,
 ) -> Response {
-    match services.card_service.get_user_cards(user_id).await {
+    match services
+        .card_service
+        .get_user_cards(
+            user_id,
+            query.limit.map(i64::from),
+            query.offset.map(i64::from),
+        )
+        .await
+    {
         Ok(cards) => Json(cards).into_response(),
         Err(err) => err.into_response(),
     }
@@ -143,12 +152,27 @@ pub async fn get_user_decks(
 /// Get cards by deck handler
 pub async fn get_deck_cards(
     Path(deck_id): Path<Uuid>,
+    Query(query): Query<CardListQuery>,
     State(services): State<AppServices>,
 ) -> Response {
-    match services.card_service.get_deck_cards(deck_id).await {
+    match services
+        .card_service
+        .get_deck_cards(
+            deck_id,
+            query.limit.map(i64::from),
+            query.offset.map(i64::from),
+        )
+        .await
+    {
         Ok(cards) => Json(cards).into_response(),
         Err(err) => err.into_response(),
     }
+}
+
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+pub struct CardListQuery {
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
 }
 
 /// Delete deck handler
@@ -275,9 +299,7 @@ pub async fn import_anki(
 }
 
 /// Reads the first `file` field from a multipart form, enforcing a 10 MB size limit.
-async fn read_multipart_file(
-    multipart: &mut Multipart,
-) -> Result<Option<bytes::Bytes>, AppError> {
+async fn read_multipart_file(multipart: &mut Multipart) -> Result<Option<bytes::Bytes>, AppError> {
     while let Ok(Some(field)) = multipart.next_field().await {
         if field.name() == Some("file") {
             let bytes = field.bytes().await.map_err(|e| {
