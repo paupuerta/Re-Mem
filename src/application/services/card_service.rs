@@ -16,7 +16,10 @@ pub struct CardService {
 
 impl CardService {
     pub fn new(card_repo: Arc<dyn CardRepository>, event_bus: Arc<EventBus>) -> Self {
-        Self { card_repo, event_bus }
+        Self {
+            card_repo,
+            event_bus,
+        }
     }
 
     pub async fn create_card(&self, user_id: Uuid, req: CreateCardRequest) -> AppResult<CardDto> {
@@ -45,8 +48,17 @@ impl CardService {
         })
     }
 
-    pub async fn get_user_cards(&self, user_id: Uuid) -> AppResult<Vec<CardDto>> {
-        let cards = self.card_repo.find_by_user(user_id).await?;
+    pub async fn get_user_cards(
+        &self,
+        user_id: Uuid,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        exclude_card_ids: Option<Vec<Uuid>>,
+    ) -> AppResult<Vec<CardDto>> {
+        let cards = self
+            .card_repo
+            .find_by_user_paginated(user_id, limit, offset, exclude_card_ids)
+            .await?;
 
         Ok(cards
             .into_iter()
@@ -61,8 +73,17 @@ impl CardService {
             .collect())
     }
 
-    pub async fn get_deck_cards(&self, deck_id: Uuid) -> AppResult<Vec<CardDto>> {
-        let cards = self.card_repo.find_by_deck(deck_id).await?;
+    pub async fn get_deck_cards(
+        &self,
+        deck_id: Uuid,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        exclude_card_ids: Option<Vec<Uuid>>,
+    ) -> AppResult<Vec<CardDto>> {
+        let cards = self
+            .card_repo
+            .find_by_deck_paginated(deck_id, limit, offset, exclude_card_ids)
+            .await?;
 
         Ok(cards
             .into_iter()
@@ -78,8 +99,9 @@ impl CardService {
     }
 
     pub async fn delete_card(&self, card_id: Uuid, user_id: Uuid) -> AppResult<()> {
-        let card = self.card_repo.find_by_id(card_id).await?
-            .ok_or_else(|| crate::AppError::NotFound(format!("Card with id {} not found", card_id)))?;
+        let card = self.card_repo.find_by_id(card_id).await?.ok_or_else(|| {
+            crate::AppError::NotFound(format!("Card with id {} not found", card_id))
+        })?;
 
         if card.user_id != user_id {
             return Err(crate::AppError::AuthorizationError(
