@@ -53,12 +53,18 @@ pub async fn get_user_cards(
     Query(query): Query<CardListQuery>,
     State(services): State<AppServices>,
 ) -> Response {
+    let exclude_card_ids = match parse_excluded_card_ids(&query) {
+        Ok(ids) => ids,
+        Err(err) => return err.into_response(),
+    };
+
     match services
         .card_service
         .get_user_cards(
             user_id,
             query.limit.map(i64::from),
             query.offset.map(i64::from),
+            exclude_card_ids,
         )
         .await
     {
@@ -155,12 +161,18 @@ pub async fn get_deck_cards(
     Query(query): Query<CardListQuery>,
     State(services): State<AppServices>,
 ) -> Response {
+    let exclude_card_ids = match parse_excluded_card_ids(&query) {
+        Ok(ids) => ids,
+        Err(err) => return err.into_response(),
+    };
+
     match services
         .card_service
         .get_deck_cards(
             deck_id,
             query.limit.map(i64::from),
             query.offset.map(i64::from),
+            exclude_card_ids,
         )
         .await
     {
@@ -173,6 +185,23 @@ pub async fn get_deck_cards(
 pub struct CardListQuery {
     pub limit: Option<u32>,
     pub offset: Option<u32>,
+    pub exclude_card_ids: Option<String>,
+}
+
+fn parse_excluded_card_ids(query: &CardListQuery) -> Result<Option<Vec<Uuid>>, AppError> {
+    let Some(ids) = query.exclude_card_ids.as_ref() else {
+        return Ok(None);
+    };
+
+    let mut parsed_ids = Vec::new();
+    for id in ids.split(',').filter(|id| !id.trim().is_empty()) {
+        let parsed_id = Uuid::parse_str(id.trim()).map_err(|_| {
+            AppError::ValidationError(format!("Invalid exclude_card_ids value: {}", id.trim()))
+        })?;
+        parsed_ids.push(parsed_id);
+    }
+
+    Ok(Some(parsed_ids))
 }
 
 /// Delete deck handler

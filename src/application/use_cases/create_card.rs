@@ -4,12 +4,11 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    domain::{
-        entities::Card,
-        ports::EmbeddingService,
-        repositories::CardRepository,
+    domain::{entities::Card, ports::EmbeddingService, repositories::CardRepository},
+    shared::{
+        error::AppResult,
+        event_bus::{DomainEvent, EventBus},
     },
-    shared::{error::AppResult, event_bus::{DomainEvent, EventBus}},
 };
 
 /// Use case for creating a new card with AI-generated embeddings
@@ -28,7 +27,11 @@ where
     R: CardRepository,
     E: EmbeddingService,
 {
-    pub fn new(card_repository: Arc<R>, embedding_service: Arc<E>, event_bus: Arc<EventBus>) -> Self {
+    pub fn new(
+        card_repository: Arc<R>,
+        embedding_service: Arc<E>,
+        event_bus: Arc<EventBus>,
+    ) -> Self {
         Self {
             card_repository,
             embedding_service,
@@ -142,8 +145,12 @@ mod tests {
     #[tokio::test]
     async fn test_create_card_with_embedding_success() {
         let expected_card_id = Uuid::new_v4();
-        let card_repo = Arc::new(MockCardRepository { card_id: expected_card_id });
-        let embedding_service = Arc::new(MockEmbeddingService { should_succeed: true });
+        let card_repo = Arc::new(MockCardRepository {
+            card_id: expected_card_id,
+        });
+        let embedding_service = Arc::new(MockEmbeddingService {
+            should_succeed: true,
+        });
         let event_bus = Arc::new(EventBus::new());
         let use_case = CreateCardUseCase::new(card_repo, embedding_service, event_bus);
 
@@ -161,8 +168,12 @@ mod tests {
     #[tokio::test]
     async fn test_create_card_without_deck() {
         let expected_card_id = Uuid::new_v4();
-        let card_repo = Arc::new(MockCardRepository { card_id: expected_card_id });
-        let embedding_service = Arc::new(MockEmbeddingService { should_succeed: true });
+        let card_repo = Arc::new(MockCardRepository {
+            card_id: expected_card_id,
+        });
+        let embedding_service = Arc::new(MockEmbeddingService {
+            should_succeed: true,
+        });
         let event_bus = Arc::new(EventBus::new());
         let use_case = CreateCardUseCase::new(card_repo, embedding_service, event_bus);
 
@@ -179,8 +190,12 @@ mod tests {
     #[tokio::test]
     async fn test_create_card_embedding_failure_continues() {
         let expected_card_id = Uuid::new_v4();
-        let card_repo = Arc::new(MockCardRepository { card_id: expected_card_id });
-        let embedding_service = Arc::new(MockEmbeddingService { should_succeed: false });
+        let card_repo = Arc::new(MockCardRepository {
+            card_id: expected_card_id,
+        });
+        let embedding_service = Arc::new(MockEmbeddingService {
+            should_succeed: false,
+        });
         let event_bus = Arc::new(EventBus::new());
         let use_case = CreateCardUseCase::new(card_repo, embedding_service, event_bus);
 

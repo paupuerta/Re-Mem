@@ -89,8 +89,12 @@ mod tests {
                 Ok(None)
             }
         }
-        async fn update(&self, _user: &User) -> AppResult<()> { Ok(()) }
-        async fn delete(&self, _id: Uuid) -> AppResult<()> { Ok(()) }
+        async fn update(&self, _user: &User) -> AppResult<()> {
+            Ok(())
+        }
+        async fn delete(&self, _id: Uuid) -> AppResult<()> {
+            Ok(())
+        }
     }
 
     fn repo(existing_email: Option<&str>) -> Arc<MockUserRepo> {
@@ -102,11 +106,13 @@ mod tests {
     #[tokio::test]
     async fn test_register_success() {
         let uc = RegisterUserUseCase::new(repo(None));
-        let result = uc.execute(RegisterRequest {
-            email: "new@example.com".to_string(),
-            name: "Alice".to_string(),
-            password: "securepassword".to_string(),
-        }).await;
+        let result = uc
+            .execute(RegisterRequest {
+                email: "new@example.com".to_string(),
+                name: "Alice".to_string(),
+                password: "securepassword".to_string(),
+            })
+            .await;
         assert!(result.is_ok());
         let res = result.unwrap();
         assert!(!res.token.is_empty());
@@ -116,22 +122,26 @@ mod tests {
     #[tokio::test]
     async fn test_register_duplicate_email_returns_conflict() {
         let uc = RegisterUserUseCase::new(repo(Some("taken@example.com")));
-        let result = uc.execute(RegisterRequest {
-            email: "taken@example.com".to_string(),
-            name: "Bob".to_string(),
-            password: "securepassword".to_string(),
-        }).await;
+        let result = uc
+            .execute(RegisterRequest {
+                email: "taken@example.com".to_string(),
+                name: "Bob".to_string(),
+                password: "securepassword".to_string(),
+            })
+            .await;
         assert!(matches!(result, Err(AppError::Conflict(_))));
     }
 
     #[tokio::test]
     async fn test_register_short_password_returns_validation_error() {
         let uc = RegisterUserUseCase::new(repo(None));
-        let result = uc.execute(RegisterRequest {
-            email: "user@example.com".to_string(),
-            name: "Carol".to_string(),
-            password: "short".to_string(),
-        }).await;
+        let result = uc
+            .execute(RegisterRequest {
+                email: "user@example.com".to_string(),
+                name: "Carol".to_string(),
+                password: "short".to_string(),
+            })
+            .await;
         assert!(matches!(result, Err(AppError::ValidationError(_))));
     }
 }

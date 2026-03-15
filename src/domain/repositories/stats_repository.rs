@@ -1,4 +1,7 @@
-use crate::{domain::entities::{DeckStats, UserStats}, AppResult};
+use crate::{
+    domain::entities::{DeckStats, UserStats},
+    AppResult,
+};
 use uuid::Uuid;
 
 /// Repository interface for UserStats domain

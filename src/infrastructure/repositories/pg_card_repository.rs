@@ -189,11 +189,55 @@ impl CardRepository for PgCardRepository {
     }
 
     async fn find_by_user(&self, user_id: Uuid) -> AppResult<Vec<Card>> {
-        self.find_by_user_paginated(user_id, None, None).await
+        let mut query = QueryBuilder::<Postgres>::new(
+            "SELECT id, user_id, deck_id, question, answer, answer_embedding, fsrs_state, created_at, updated_at \
+             FROM cards WHERE user_id = ",
+        );
+        query.push_bind(user_id);
+        query.push(" ORDER BY created_at, id");
+
+        let rows = query
+            .build_query_as::<(
+                Uuid,
+                Uuid,
+                Option<Uuid>,
+                String,
+                String,
+                Option<Vector>,
+                serde_json::Value,
+                chrono::DateTime<chrono::Utc>,
+                chrono::DateTime<chrono::Utc>,
+            )>()
+            .fetch_all(&self.pool)
+            .await?;
+
+        Self::map_card_rows(rows)
     }
 
     async fn find_by_deck(&self, deck_id: Uuid) -> AppResult<Vec<Card>> {
-        self.find_by_deck_paginated(deck_id, None, None).await
+        let mut query = QueryBuilder::<Postgres>::new(
+            "SELECT id, user_id, deck_id, question, answer, answer_embedding, fsrs_state, created_at, updated_at \
+             FROM cards WHERE deck_id = ",
+        );
+        query.push_bind(deck_id);
+        query.push(" ORDER BY created_at, id");
+
+        let rows = query
+            .build_query_as::<(
+                Uuid,
+                Uuid,
+                Option<Uuid>,
+                String,
+                String,
+                Option<Vector>,
+                serde_json::Value,
+                chrono::DateTime<chrono::Utc>,
+                chrono::DateTime<chrono::Utc>,
+            )>()
+            .fetch_all(&self.pool)
+            .await?;
+
+        Self::map_card_rows(rows)
     }
 
     async fn find_by_user_paginated(
@@ -201,13 +245,15 @@ impl CardRepository for PgCardRepository {
         user_id: Uuid,
         limit: Option<i64>,
         offset: Option<i64>,
+        exclude_card_ids: Option<Vec<Uuid>>,
     ) -> AppResult<Vec<Card>> {
         let mut query = QueryBuilder::<Postgres>::new(
             "SELECT id, user_id, deck_id, question, answer, answer_embedding, fsrs_state, created_at, updated_at \
              FROM cards WHERE user_id = ",
         );
         query.push_bind(user_id);
-        query.push(" ORDER BY created_at, id");
+        push_excluded_card_filter(&mut query, exclude_card_ids);
+        query.push(fsrs_order_by_clause());
         if let Some(limit) = limit {
             query.push(" LIMIT ");
             query.push_bind(limit);
@@ -240,13 +286,15 @@ impl CardRepository for PgCardRepository {
         deck_id: Uuid,
         limit: Option<i64>,
         offset: Option<i64>,
+        exclude_card_ids: Option<Vec<Uuid>>,
     ) -> AppResult<Vec<Card>> {
         let mut query = QueryBuilder::<Postgres>::new(
             "SELECT id, user_id, deck_id, question, answer, answer_embedding, fsrs_state, created_at, updated_at \
              FROM cards WHERE deck_id = ",
         );
         query.push_bind(deck_id);
-        query.push(" ORDER BY created_at, id");
+        push_excluded_card_filter(&mut query, exclude_card_ids);
+        query.push(fsrs_order_by_clause());
         if let Some(limit) = limit {
             query.push(" LIMIT ");
             query.push_bind(limit);
@@ -297,4 +345,29 @@ impl CardRepository for PgCardRepository {
             .await?;
         Ok(())
     }
+}
+
+fn push_excluded_card_filter(
+    query: &mut QueryBuilder<Postgres>,
+    exclude_card_ids: Option<Vec<Uuid>>,
+) {
+    if let Some(exclude_card_ids) = exclude_card_ids {
+        if !exclude_card_ids.is_empty() {
+            query.push(" AND id NOT IN (");
+            {
+                let mut separated = query.separated(", ");
+                for card_id in exclude_card_ids {
+                    separated.push_bind(card_id);
+                }
+            }
+            query.push(")");
+        }
+    }
+}
+
+fn fsrs_order_by_clause() -> &'static str {
+    " ORDER BY \
+     CASE WHEN COALESCE(((fsrs_state ->> 'last_review')::timestamptz + make_interval(days => COALESCE((fsrs_state ->> 'scheduled_days')::int, 0))), created_at) <= NOW() THEN 0 ELSE 1 END, \
+     COALESCE(((fsrs_state ->> 'last_review')::timestamptz + make_interval(days => COALESCE((fsrs_state ->> 'scheduled_days')::int, 0))), created_at), \
+     created_at, id"
 }

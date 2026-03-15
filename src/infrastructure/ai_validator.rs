@@ -56,11 +56,7 @@ impl OpenAIValidator {
             .input(vec![expected.to_string(), user_answer.to_string()])
             .build()?;
 
-        let response = self
-            .client
-            .embeddings()
-            .create(request)
-            .await?;
+        let response = self.client.embeddings().create(request).await?;
 
         if response.data.len() < 2 {
             return Ok(0.0);
@@ -99,18 +95,14 @@ Respond with ONLY a number between 0.0 and 1.0, nothing else."#;
         let request = CreateChatCompletionRequest {
             model: self.chat_model.clone(),
             messages: vec![
-                ChatCompletionRequestMessage::System(
-                    ChatCompletionRequestSystemMessage {
-                        content: system_prompt.into(),
-                        name: None,
-                    },
-                ),
-                ChatCompletionRequestMessage::User(
-                    ChatCompletionRequestUserMessage {
-                        content: user_prompt.into(),
-                        name: None,
-                    },
-                ),
+                ChatCompletionRequestMessage::System(ChatCompletionRequestSystemMessage {
+                    content: system_prompt.into(),
+                    name: None,
+                }),
+                ChatCompletionRequestMessage::User(ChatCompletionRequestUserMessage {
+                    content: user_prompt.into(),
+                    name: None,
+                }),
             ],
             temperature: Some(0.0),
             max_completion_tokens: Some(10),

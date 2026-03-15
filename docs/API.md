@@ -99,6 +99,12 @@ GET /users/{user_id}/cards
 Query parameters:
   limit: integer, optional
   offset: integer, optional
+  exclude_card_ids: comma-separated UUID list, optional
+
+When pagination parameters are used for study sessions, cards are ordered by
+FSRS due priority so overdue cards are returned first. `exclude_card_ids` can
+be used by clients to avoid reloading cards that are already in the active
+study session.
 
 Response: 200 OK
 [
@@ -244,6 +250,12 @@ GET /decks/{deck_id}/cards
 Query parameters:
   limit: integer, optional
   offset: integer, optional
+  exclude_card_ids: comma-separated UUID list, optional
+
+When pagination parameters are used for study sessions, cards are ordered by
+FSRS due priority so overdue cards are returned first. `exclude_card_ids` can
+be used by clients to avoid reloading cards that are already in the active
+study session.
 
 Response: 200 OK
 [

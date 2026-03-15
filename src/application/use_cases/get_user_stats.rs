@@ -2,9 +2,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    application::dtos::UserStatsDto,
-    domain::repositories::UserStatsRepository,
-    AppResult,
+    application::dtos::UserStatsDto, domain::repositories::UserStatsRepository, AppResult,
 };
 
 /// Use case for retrieving user statistics

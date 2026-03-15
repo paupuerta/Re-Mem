@@ -48,11 +48,7 @@ impl ImportAnkiUseCase {
         }
     }
 
-    pub async fn execute(
-        &self,
-        user_id: Uuid,
-        file_bytes: Bytes,
-    ) -> AppResult<AnkiImportResult> {
+    pub async fn execute(&self, user_id: Uuid, file_bytes: Bytes) -> AppResult<AnkiImportResult> {
         if file_bytes.len() > MAX_FILE_BYTES {
             return Err(AppError::ValidationError(
                 "File exceeds the 10 MB size limit".to_string(),
@@ -62,12 +58,9 @@ impl ImportAnkiUseCase {
         let raw = file_bytes.to_vec();
 
         // Unzip is synchronous — extract the collection DB bytes in a blocking thread
-        let tmp_path =
-            tokio::task::spawn_blocking(move || extract_collection_to_tempfile(raw))
-                .await
-                .map_err(|e| {
-                    AppError::InternalError(format!("Anki unzip task panicked: {}", e))
-                })??;
+        let tmp_path = tokio::task::spawn_blocking(move || extract_collection_to_tempfile(raw))
+            .await
+            .map_err(|e| AppError::InternalError(format!("Anki unzip task panicked: {}", e)))??;
 
         // Open the SQLite collection file with sqlx (async, read-only)
         let opts = SqliteConnectOptions::new()
@@ -164,9 +157,8 @@ fn extract_collection_to_tempfile(file_bytes: Vec<u8>) -> AppResult<std::path::P
     use std::io::{Cursor, Read, Write};
 
     let cursor = Cursor::new(file_bytes);
-    let mut archive = zip::ZipArchive::new(cursor).map_err(|e| {
-        AppError::ValidationError(format!("Not a valid ZIP/APKG file: {}", e))
-    })?;
+    let mut archive = zip::ZipArchive::new(cursor)
+        .map_err(|e| AppError::ValidationError(format!("Not a valid ZIP/APKG file: {}", e)))?;
 
     let collection_name = (0..archive.len())
         .find_map(|i| {
@@ -190,9 +182,9 @@ fn extract_collection_to_tempfile(file_bytes: Vec<u8>) -> AppResult<std::path::P
     })?;
 
     let mut db_bytes = Vec::new();
-    entry.read_to_end(&mut db_bytes).map_err(|e| {
-        AppError::InternalError(format!("Failed to read collection bytes: {}", e))
-    })?;
+    entry
+        .read_to_end(&mut db_bytes)
+        .map_err(|e| AppError::InternalError(format!("Failed to read collection bytes: {}", e)))?;
     drop(entry);
 
     let mut tmp = tempfile::Builder::new()
@@ -200,27 +192,24 @@ fn extract_collection_to_tempfile(file_bytes: Vec<u8>) -> AppResult<std::path::P
         .tempfile()
         .map_err(|e| AppError::InternalError(format!("Failed to create temp file: {}", e)))?;
 
-    tmp.write_all(&db_bytes).map_err(|e| {
-        AppError::InternalError(format!("Failed to write temp file: {}", e))
-    })?;
-    tmp.flush().map_err(|e| {
-        AppError::InternalError(format!("Failed to flush temp file: {}", e))
-    })?;
+    tmp.write_all(&db_bytes)
+        .map_err(|e| AppError::InternalError(format!("Failed to write temp file: {}", e)))?;
+    tmp.flush()
+        .map_err(|e| AppError::InternalError(format!("Failed to flush temp file: {}", e)))?;
 
     // Keep the file on disk (persist it) so sqlx can open it
-    let (_, path) = tmp.keep().map_err(|e| {
-        AppError::InternalError(format!("Failed to persist temp file: {}", e))
-    })?;
+    let (_, path) = tmp
+        .keep()
+        .map_err(|e| AppError::InternalError(format!("Failed to persist temp file: {}", e)))?;
 
     Ok(path)
 }
 
 /// Extract the first non-"Default" deck name from the `col` table.
 async fn extract_deck_name(pool: &SqlitePool) -> String {
-    let result: Result<(String,), sqlx::Error> =
-        sqlx::query_as("SELECT decks FROM col LIMIT 1")
-            .fetch_one(pool)
-            .await;
+    let result: Result<(String,), sqlx::Error> = sqlx::query_as("SELECT decks FROM col LIMIT 1")
+        .fetch_one(pool)
+        .await;
 
     let json_str = match result {
         Ok((s,)) => s,
@@ -326,7 +315,12 @@ mod tests {
         async fn get_or_create(&self, deck_id: Uuid, user_id: Uuid) -> AppResult<DeckStats> {
             Ok(DeckStats::new(deck_id, user_id))
         }
-        async fn update_after_review(&self, _deck_id: Uuid, _is_correct: bool, _review_date: chrono::NaiveDate) -> AppResult<()> {
+        async fn update_after_review(
+            &self,
+            _deck_id: Uuid,
+            _is_correct: bool,
+            _review_date: chrono::NaiveDate,
+        ) -> AppResult<()> {
             Ok(())
         }
         async fn increment_card_count(&self, _deck_id: Uuid) -> AppResult<()> {
@@ -361,7 +355,6 @@ mod tests {
     /// Build a minimal `.apkg` (ZIP containing a SQLite DB) in memory.
     /// The SQLite DB has a `notes` table with the given `(front, back)` pairs.
     fn build_test_apkg(notes: &[(&str, &str)], deck_name: Option<&str>) -> Vec<u8> {
-
         // 1. Create an in-memory SQLite DB via a temp file
         let tmp = tempfile::Builder::new()
             .suffix(".db")
@@ -379,44 +372,39 @@ mod tests {
         // Use a blocking Tokio runtime inline.
         tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
-            let opts = sqlx::sqlite::SqliteConnectOptions::new()
-                .filename(&path)
-                .create_if_missing(true);
-            let pool = sqlx::SqlitePool::connect_with(opts).await.unwrap();
+                let opts = sqlx::sqlite::SqliteConnectOptions::new()
+                    .filename(&path)
+                    .create_if_missing(true);
+                let pool = sqlx::SqlitePool::connect_with(opts).await.unwrap();
 
-            sqlx::query(
-                "CREATE TABLE notes (id INTEGER PRIMARY KEY, flds TEXT NOT NULL)",
-            )
-            .execute(&pool)
-            .await
-            .unwrap();
-
-            for (front, back) in notes {
-                let flds = format!("{}\x1f{}", front, back);
-                sqlx::query("INSERT INTO notes (flds) VALUES (?)")
-                    .bind(flds)
+                sqlx::query("CREATE TABLE notes (id INTEGER PRIMARY KEY, flds TEXT NOT NULL)")
                     .execute(&pool)
                     .await
                     .unwrap();
-            }
 
-            if let Some(name) = deck_name {
-                let decks_json = format!(
-                    r#"{{"1":{{"id":1,"name":"{}","usn":0}}}}"#,
-                    name
-                );
-                sqlx::query("CREATE TABLE col (id INTEGER PRIMARY KEY, decks TEXT)")
-                    .execute(&pool)
-                    .await
-                    .unwrap();
-                sqlx::query("INSERT INTO col (id, decks) VALUES (1, ?)")
-                    .bind(decks_json)
-                    .execute(&pool)
-                    .await
-                    .unwrap();
-            }
+                for (front, back) in notes {
+                    let flds = format!("{}\x1f{}", front, back);
+                    sqlx::query("INSERT INTO notes (flds) VALUES (?)")
+                        .bind(flds)
+                        .execute(&pool)
+                        .await
+                        .unwrap();
+                }
 
-            pool.close().await;
+                if let Some(name) = deck_name {
+                    let decks_json = format!(r#"{{"1":{{"id":1,"name":"{}","usn":0}}}}"#, name);
+                    sqlx::query("CREATE TABLE col (id INTEGER PRIMARY KEY, decks TEXT)")
+                        .execute(&pool)
+                        .await
+                        .unwrap();
+                    sqlx::query("INSERT INTO col (id, decks) VALUES (1, ?)")
+                        .bind(decks_json)
+                        .execute(&pool)
+                        .await
+                        .unwrap();
+                }
+
+                pool.close().await;
             })
         });
 
@@ -427,9 +415,8 @@ mod tests {
         {
             let cursor = Cursor::new(&mut zip_buf);
             let mut zip = zip::ZipWriter::new(cursor);
-            let opts: zip::write::FileOptions<'_, ()> =
-                zip::write::FileOptions::default()
-                    .compression_method(zip::CompressionMethod::Stored);
+            let opts: zip::write::FileOptions<'_, ()> = zip::write::FileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored);
             zip.start_file("collection.anki2", opts).unwrap();
             zip.write_all(&db_bytes).unwrap();
             zip.finish().unwrap();
@@ -464,9 +451,8 @@ mod tests {
         {
             let cursor = Cursor::new(&mut zip_buf);
             let mut zip = zip::ZipWriter::new(cursor);
-            let opts: zip::write::FileOptions<'_, ()> =
-                zip::write::FileOptions::default()
-                    .compression_method(zip::CompressionMethod::Stored);
+            let opts: zip::write::FileOptions<'_, ()> = zip::write::FileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored);
             zip.start_file("media", opts).unwrap();
             zip.write_all(b"{}").unwrap();
             zip.finish().unwrap();
@@ -479,11 +465,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_import_anki_happy_path() {
-        let notes = vec![
-            ("Hello", "Hola"),
-            ("World", "Mundo"),
-            ("Cat", "Gato"),
-        ];
+        let notes = vec![("Hello", "Hola"), ("World", "Mundo"), ("Cat", "Gato")];
         let apkg = build_test_apkg(&notes, Some("Spanish Basics"));
         let result = make_use_case()
             .execute(Uuid::new_v4(), Bytes::from(apkg))
@@ -542,4 +524,3 @@ fn strip_html(html: &str) -> String {
         .trim()
         .to_string()
 }
-

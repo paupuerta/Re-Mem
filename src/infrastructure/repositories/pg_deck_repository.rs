@@ -57,15 +57,13 @@ impl DeckRepository for PgDeckRepository {
     }
 
     async fn update(&self, deck: &Deck) -> AppResult<()> {
-        sqlx::query(
-            "UPDATE decks SET name = $1, description = $2, updated_at = $3 WHERE id = $4",
-        )
-        .bind(&deck.name)
-        .bind(&deck.description)
-        .bind(deck.updated_at)
-        .bind(deck.id)
-        .execute(&self.pool)
-        .await?;
+        sqlx::query("UPDATE decks SET name = $1, description = $2, updated_at = $3 WHERE id = $4")
+            .bind(&deck.name)
+            .bind(&deck.description)
+            .bind(deck.updated_at)
+            .bind(deck.id)
+            .execute(&self.pool)
+            .await?;
         Ok(())
     }
 

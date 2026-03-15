@@ -48,9 +48,13 @@ fn test_card_creation() {
 fn test_card_with_deck() {
     let user_id = uuid::Uuid::new_v4();
     let deck_id = uuid::Uuid::new_v4();
-    let card = Card::new(user_id, "Test question".to_string(), "Test answer".to_string())
-        .with_deck(deck_id);
-    
+    let card = Card::new(
+        user_id,
+        "Test question".to_string(),
+        "Test answer".to_string(),
+    )
+    .with_deck(deck_id);
+
     assert_eq!(card.deck_id, Some(deck_id));
     assert_eq!(card.user_id, user_id);
 }
@@ -61,7 +65,7 @@ fn test_card_with_embedding() {
     let embedding = vec![0.1, 0.2, 0.3, 0.4, 0.5];
     let card = Card::new(user_id, "Test".to_string(), "Answer".to_string())
         .with_embedding(embedding.clone());
-    
+
     assert_eq!(card.answer_embedding, Some(embedding));
 }
 
@@ -70,11 +74,11 @@ fn test_card_builder_pattern() {
     let user_id = uuid::Uuid::new_v4();
     let deck_id = uuid::Uuid::new_v4();
     let embedding = vec![0.1, 0.2, 0.3];
-    
+
     let card = Card::new(user_id, "Q".to_string(), "A".to_string())
         .with_deck(deck_id)
         .with_embedding(embedding.clone());
-    
+
     assert_eq!(card.deck_id, Some(deck_id));
     assert_eq!(card.answer_embedding, Some(embedding));
 }

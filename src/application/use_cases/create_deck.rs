@@ -4,10 +4,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    domain::{
-        entities::Deck,
-        repositories::DeckRepository,
-    },
+    domain::{entities::Deck, repositories::DeckRepository},
     shared::error::AppResult,
 };
 
@@ -75,7 +72,9 @@ mod tests {
     #[tokio::test]
     async fn test_create_deck_success() {
         let expected_deck_id = Uuid::new_v4();
-        let repo = Arc::new(MockDeckRepository { deck_id: expected_deck_id });
+        let repo = Arc::new(MockDeckRepository {
+            deck_id: expected_deck_id,
+        });
         let use_case = CreateDeckUseCase::new(repo);
 
         let user_id = Uuid::new_v4();
@@ -91,7 +90,9 @@ mod tests {
     #[tokio::test]
     async fn test_create_deck_without_description() {
         let expected_deck_id = Uuid::new_v4();
-        let repo = Arc::new(MockDeckRepository { deck_id: expected_deck_id });
+        let repo = Arc::new(MockDeckRepository {
+            deck_id: expected_deck_id,
+        });
         let use_case = CreateDeckUseCase::new(repo);
 
         let user_id = Uuid::new_v4();

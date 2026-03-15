@@ -53,10 +53,11 @@ impl CardService {
         user_id: Uuid,
         limit: Option<i64>,
         offset: Option<i64>,
+        exclude_card_ids: Option<Vec<Uuid>>,
     ) -> AppResult<Vec<CardDto>> {
         let cards = self
             .card_repo
-            .find_by_user_paginated(user_id, limit, offset)
+            .find_by_user_paginated(user_id, limit, offset, exclude_card_ids)
             .await?;
 
         Ok(cards
@@ -77,10 +78,11 @@ impl CardService {
         deck_id: Uuid,
         limit: Option<i64>,
         offset: Option<i64>,
+        exclude_card_ids: Option<Vec<Uuid>>,
     ) -> AppResult<Vec<CardDto>> {
         let cards = self
             .card_repo
-            .find_by_deck_paginated(deck_id, limit, offset)
+            .find_by_deck_paginated(deck_id, limit, offset, exclude_card_ids)
             .await?;
 
         Ok(cards
