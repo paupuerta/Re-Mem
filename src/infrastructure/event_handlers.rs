@@ -1,8 +1,8 @@
-use std::sync::Arc;
 use chrono::Utc;
+use std::sync::Arc;
 
 use crate::{
-    domain::repositories::{DeckStatsRepository, UserStatsRepository, CardRepository},
+    domain::repositories::{CardRepository, DeckStatsRepository, UserStatsRepository},
     shared::event_bus::{DomainEvent, EventHandler},
     AppResult,
 };
@@ -40,7 +40,7 @@ impl EventHandler for StatisticsEventHandler {
             } => {
                 // Determine if the review was correct (score >= 70%)
                 let is_correct = score >= 0.7;
-                
+
                 // Get current UTC date for tracking "days studied"
                 let review_date = Utc::now().date_naive();
 
@@ -65,7 +65,11 @@ impl EventHandler for StatisticsEventHandler {
                     card_id
                 );
             }
-            DomainEvent::CardCreated { card_id: _, user_id: _, deck_id } => {
+            DomainEvent::CardCreated {
+                card_id: _,
+                user_id: _,
+                deck_id,
+            } => {
                 // When a card is created, update deck card count if it belongs to a deck
                 if let Some(deck_id) = deck_id {
                     self.deck_stats_repo.increment_card_count(deck_id).await?;

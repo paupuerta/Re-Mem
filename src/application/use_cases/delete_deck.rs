@@ -18,18 +18,19 @@ impl DeleteDeckUseCase {
     pub async fn execute(&self, deck_id: Uuid, user_id: Uuid) -> AppResult<()> {
         // Verify deck exists and belongs to user
         let deck = self.deck_repository.find_by_id(deck_id).await?;
-        
+
         match deck {
             Some(d) if d.user_id == user_id => {
                 self.deck_repository.delete(deck_id).await?;
                 Ok(())
             }
             Some(_) => Err(crate::AppError::AuthorizationError(
-                "Cannot delete deck belonging to another user".to_string()
+                "Cannot delete deck belonging to another user".to_string(),
             )),
-            None => Err(crate::AppError::NotFound(
-                format!("Deck with id {} not found", deck_id)
-            )),
+            None => Err(crate::AppError::NotFound(format!(
+                "Deck with id {} not found",
+                deck_id
+            ))),
         }
     }
 }
@@ -61,7 +62,13 @@ mod tests {
         }
 
         async fn find_by_id(&self, id: Uuid) -> AppResult<Option<Deck>> {
-            Ok(self.decks.lock().unwrap().iter().find(|d| d.id == id).cloned())
+            Ok(self
+                .decks
+                .lock()
+                .unwrap()
+                .iter()
+                .find(|d| d.id == id)
+                .cloned())
         }
 
         async fn find_by_user(&self, user_id: Uuid) -> AppResult<Vec<Deck>> {
@@ -92,7 +99,11 @@ mod tests {
     #[tokio::test]
     async fn test_delete_deck_success() {
         let user_id = Uuid::new_v4();
-        let deck = Deck::new(user_id, "Test Deck".to_string(), Some("Description".to_string()));
+        let deck = Deck::new(
+            user_id,
+            "Test Deck".to_string(),
+            Some("Description".to_string()),
+        );
         let deck_id = deck.id;
 
         let repo = Arc::new(MockDeckRepository::new());
@@ -102,7 +113,7 @@ mod tests {
         let result = use_case.execute(deck_id, user_id).await;
 
         assert!(result.is_ok());
-        
+
         // Verify deck was deleted
         let found = repo.find_by_id(deck_id).await.unwrap();
         assert!(found.is_none());
@@ -112,7 +123,7 @@ mod tests {
     async fn test_delete_deck_not_found() {
         let user_id = Uuid::new_v4();
         let deck_id = Uuid::new_v4();
-        
+
         let repo = Arc::new(MockDeckRepository::new());
         let use_case = DeleteDeckUseCase::new(repo);
 
@@ -135,8 +146,11 @@ mod tests {
         let result = use_case.execute(deck_id, other_user_id).await;
 
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), crate::AppError::AuthorizationError(_)));
-        
+        assert!(matches!(
+            result.unwrap_err(),
+            crate::AppError::AuthorizationError(_)
+        ));
+
         // Verify deck was NOT deleted
         let found = repo.find_by_id(deck_id).await.unwrap();
         assert!(found.is_some());

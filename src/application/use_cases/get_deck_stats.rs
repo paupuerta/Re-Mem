@@ -30,7 +30,9 @@ impl GetDeckStatsUseCase {
             .deck_repository
             .find_by_id(deck_id)
             .await?
-            .ok_or_else(|| crate::AppError::NotFound(format!("Deck with id {} not found", deck_id)))?;
+            .ok_or_else(|| {
+                crate::AppError::NotFound(format!("Deck with id {} not found", deck_id))
+            })?;
 
         // Get or create stats for this deck
         let stats = self
@@ -140,7 +142,7 @@ mod tests {
     async fn test_get_deck_stats_success() {
         let user_id = Uuid::new_v4();
         let deck_id = Uuid::new_v4();
-        
+
         let deck = Deck::new(user_id, "Spanish Vocabulary".to_string(), None);
         let mut stats = DeckStats::new(deck_id, user_id);
         stats.total_cards = 50;
@@ -150,7 +152,7 @@ mod tests {
 
         let deck_repo = Arc::new(MockDeckRepository::with_deck(deck));
         let stats_repo = Arc::new(MockDeckStatsRepository::with_stats(stats));
-        
+
         let use_case = GetDeckStatsUseCase::new(stats_repo, deck_repo);
         let result = use_case.execute(deck_id).await.unwrap();
 
@@ -165,12 +167,14 @@ mod tests {
     #[tokio::test]
     async fn test_get_deck_stats_deck_not_found() {
         let deck_id = Uuid::new_v4();
-        
-        let deck_repo = Arc::new(MockDeckRepository { deck: Mutex::new(None) });
+
+        let deck_repo = Arc::new(MockDeckRepository {
+            deck: Mutex::new(None),
+        });
         let stats_repo = Arc::new(MockDeckStatsRepository {
             stats: Mutex::new(None),
         });
-        
+
         let use_case = GetDeckStatsUseCase::new(stats_repo, deck_repo);
         let result = use_case.execute(deck_id).await;
 

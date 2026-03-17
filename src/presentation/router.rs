@@ -11,7 +11,10 @@ use super::handlers::*;
 use super::middleware::auth::require_auth;
 use crate::application::{
     services::{AuthService, CardService, DeckService, ReviewService, UserService},
-    use_cases::{GetDeckStatsUseCase, GetUserStatsUseCase, ImportAnkiUseCase, ImportTsvUseCase, ReviewCardUseCase},
+    use_cases::{
+        GetDeckStatsUseCase, GetUserStatsUseCase, ImportAnkiUseCase, ImportTsvUseCase,
+        ReviewCardUseCase,
+    },
 };
 use crate::domain::ports::AIValidator;
 use crate::domain::repositories::{CardRepository, ReviewLogRepository};

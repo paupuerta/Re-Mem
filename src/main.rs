@@ -1,6 +1,13 @@
 use re_mem::{
     application::services::{AuthService, CardService, DeckService, ReviewService, UserService},
-    application::use_cases::{GetDeckStatsUseCase, GetUserStatsUseCase, ImportAnkiUseCase, ImportTsvUseCase, ReviewCardUseCase},
+    application::use_cases::{
+        GetDeckStatsUseCase, GetUserStatsUseCase, ImportAnkiUseCase, ImportTsvUseCase,
+        ReviewCardUseCase,
+    },
+    domain::{
+        ports::EmbeddingService,
+        repositories::{CardRepository, DeckRepository, DeckStatsRepository},
+    },
     infrastructure::{
         ai_validator::{FallbackValidator, OpenAIValidator},
         database::{init_db_pool, DbConfig},
@@ -9,10 +16,6 @@ use re_mem::{
             PgReviewRepository, PgUserRepository, PgUserStatsRepository,
         },
         StatisticsEventHandler,
-    },
-    domain::{
-        ports::EmbeddingService,
-        repositories::{CardRepository, DeckRepository, DeckStatsRepository},
     },
     presentation::router::{create_router, AppServices, ReviewCardUseCaseTrait},
     shared::event_bus::EventBus,
@@ -54,17 +57,17 @@ async fn main() {
 
     // Initialize Event Bus and register handlers
     let mut event_bus = EventBus::new();
-    
+
     // Initialize Statistics Event Handler
     let stats_handler = Arc::new(StatisticsEventHandler::new(
         user_stats_repo.clone(),
         deck_stats_repo.clone(),
         card_repo.clone(),
     ));
-    
+
     // Register the statistics handler
     event_bus.register_handler(stats_handler);
-    
+
     let event_bus = Arc::new(event_bus);
 
     // Initialize application services (legacy)
@@ -129,9 +132,9 @@ async fn main() {
     ));
 
     // Initialize auth service
-    let auth_service = Arc::new(AuthService::new(
-        Arc::new(PgUserRepository::new(db_pool.clone())),
-    ));
+    let auth_service = Arc::new(AuthService::new(Arc::new(PgUserRepository::new(
+        db_pool.clone(),
+    ))));
 
     let app_services = AppServices {
         user_service,

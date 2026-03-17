@@ -4,10 +4,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    domain::{
-        entities::Deck,
-        repositories::DeckRepository,
-    },
+    domain::{entities::Deck, repositories::DeckRepository},
     shared::error::AppResult,
 };
 
@@ -70,7 +67,7 @@ mod tests {
         let user_id = Uuid::new_v4();
         let deck1 = Deck::new(user_id, "Spanish".to_string(), Some("Vocab".to_string()));
         let deck2 = Deck::new(user_id, "French".to_string(), None);
-        
+
         let repo = Arc::new(MockDeckRepository {
             decks: vec![deck1.clone(), deck2.clone()],
         });

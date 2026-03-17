@@ -2,8 +2,8 @@
 
 #[cfg(test)]
 mod deck_repository_tests {
-    use re_mem::domain::{entities::Deck, repositories::DeckRepository};
     use async_trait::async_trait;
+    use re_mem::domain::{entities::Deck, repositories::DeckRepository};
     use uuid::Uuid;
 
     struct MockDeckRepo {
@@ -34,7 +34,11 @@ mod deck_repository_tests {
                 return Ok(vec![]);
             }
             Ok(vec![
-                Deck::new(user_id, "Deck 1".to_string(), Some("Description 1".to_string())),
+                Deck::new(
+                    user_id,
+                    "Deck 1".to_string(),
+                    Some("Description 1".to_string()),
+                ),
                 Deck::new(user_id, "Deck 2".to_string(), None),
             ])
         }
@@ -60,7 +64,11 @@ mod deck_repository_tests {
     async fn test_create_deck_success() {
         let repo = MockDeckRepo { should_fail: false };
         let user_id = Uuid::new_v4();
-        let deck = Deck::new(user_id, "Spanish".to_string(), Some("Vocabulary".to_string()));
+        let deck = Deck::new(
+            user_id,
+            "Spanish".to_string(),
+            Some("Vocabulary".to_string()),
+        );
 
         let result = repo.create(&deck).await;
         assert!(result.is_ok());
@@ -103,8 +111,8 @@ mod deck_repository_tests {
 
 #[cfg(test)]
 mod card_repository_tests {
-    use re_mem::domain::{entities::Card, repositories::CardRepository};
     use async_trait::async_trait;
+    use re_mem::domain::{entities::Card, repositories::CardRepository};
     use uuid::Uuid;
 
     struct MockCardRepo {
@@ -126,7 +134,12 @@ mod card_repository_tests {
         }
 
         async fn find_by_deck(&self, deck_id: Uuid) -> re_mem::AppResult<Vec<Card>> {
-            Ok(self.cards.iter().filter(|c| c.deck_id == Some(deck_id)).cloned().collect())
+            Ok(self
+                .cards
+                .iter()
+                .filter(|c| c.deck_id == Some(deck_id))
+                .cloned()
+                .collect())
         }
 
         async fn bulk_create(&self, cards: &[Card]) -> re_mem::AppResult<Vec<Uuid>> {
@@ -183,7 +196,7 @@ mod card_repository_tests {
     async fn test_card_with_embedding() {
         let user_id = Uuid::new_v4();
         let embedding = vec![0.1, 0.2, 0.3, 0.4, 0.5];
-        
+
         let card = Card::new(user_id, "Test".to_string(), "Answer".to_string())
             .with_embedding(embedding.clone());
 

@@ -17,18 +17,19 @@ impl DeleteCardUseCase {
     pub async fn execute(&self, card_id: Uuid, user_id: Uuid) -> AppResult<()> {
         // Verify card exists and belongs to user
         let card = self.card_repository.find_by_id(card_id).await?;
-        
+
         match card {
             Some(c) if c.user_id == user_id => {
                 self.card_repository.delete(card_id).await?;
                 Ok(())
             }
             Some(_) => Err(crate::AppError::AuthorizationError(
-                "Cannot delete card belonging to another user".to_string()
+                "Cannot delete card belonging to another user".to_string(),
             )),
-            None => Err(crate::AppError::NotFound(
-                format!("Card with id {} not found", card_id)
-            )),
+            None => Err(crate::AppError::NotFound(format!(
+                "Card with id {} not found",
+                card_id
+            ))),
         }
     }
 }
@@ -60,7 +61,13 @@ mod tests {
         }
 
         async fn find_by_id(&self, id: Uuid) -> AppResult<Option<Card>> {
-            Ok(self.cards.lock().unwrap().iter().find(|c| c.id == id).cloned())
+            Ok(self
+                .cards
+                .lock()
+                .unwrap()
+                .iter()
+                .find(|c| c.id == id)
+                .cloned())
         }
 
         async fn find_by_user(&self, user_id: Uuid) -> AppResult<Vec<Card>> {
@@ -110,11 +117,7 @@ mod tests {
     #[tokio::test]
     async fn test_delete_card_success() {
         let user_id = Uuid::new_v4();
-        let card = Card::new(
-            user_id,
-            "Question".to_string(),
-            "Answer".to_string(),
-        );
+        let card = Card::new(user_id, "Question".to_string(), "Answer".to_string());
         let card_id = card.id;
 
         let repo = Arc::new(MockCardRepository::new());
@@ -124,7 +127,7 @@ mod tests {
         let result = use_case.execute(card_id, user_id).await;
 
         assert!(result.is_ok());
-        
+
         // Verify card was deleted
         let found = repo.find_by_id(card_id).await.unwrap();
         assert!(found.is_none());
@@ -134,7 +137,7 @@ mod tests {
     async fn test_delete_card_not_found() {
         let user_id = Uuid::new_v4();
         let card_id = Uuid::new_v4();
-        
+
         let repo = Arc::new(MockCardRepository::new());
         let use_case = DeleteCardUseCase::new(repo);
 
@@ -147,11 +150,7 @@ mod tests {
     async fn test_delete_card_wrong_user() {
         let owner_id = Uuid::new_v4();
         let other_user_id = Uuid::new_v4();
-        let card = Card::new(
-            owner_id,
-            "Question".to_string(),
-            "Answer".to_string(),
-        );
+        let card = Card::new(owner_id, "Question".to_string(), "Answer".to_string());
         let card_id = card.id;
 
         let repo = Arc::new(MockCardRepository::new());
@@ -161,8 +160,11 @@ mod tests {
         let result = use_case.execute(card_id, other_user_id).await;
 
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), crate::AppError::AuthorizationError(_)));
-        
+        assert!(matches!(
+            result.unwrap_err(),
+            crate::AppError::AuthorizationError(_)
+        ));
+
         // Verify card was NOT deleted
         let found = repo.find_by_id(card_id).await.unwrap();
         assert!(found.is_some());

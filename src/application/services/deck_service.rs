@@ -48,8 +48,9 @@ impl DeckService {
     }
 
     pub async fn delete_deck(&self, deck_id: Uuid, user_id: Uuid) -> AppResult<()> {
-        let deck = self.deck_repo.find_by_id(deck_id).await?
-            .ok_or_else(|| crate::AppError::NotFound(format!("Deck with id {} not found", deck_id)))?;
+        let deck = self.deck_repo.find_by_id(deck_id).await?.ok_or_else(|| {
+            crate::AppError::NotFound(format!("Deck with id {} not found", deck_id))
+        })?;
 
         if deck.user_id != user_id {
             return Err(crate::AppError::AuthorizationError(
