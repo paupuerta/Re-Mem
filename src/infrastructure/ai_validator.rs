@@ -24,14 +24,35 @@ pub struct OpenAIValidator {
 }
 
 impl OpenAIValidator {
+    const DEFAULT_EMBEDDING_MODEL: &'static str = "text-embedding-3-small";
+    const DEFAULT_CHAT_MODEL: &'static str = "gpt-4o-mini";
+
     pub fn new(api_key: String) -> Self {
-        let config = OpenAIConfig::new().with_api_key(api_key);
+        Self::new_with_config(api_key, None, None, None)
+    }
+
+    pub fn new_with_config(
+        api_key: String,
+        api_base: Option<String>,
+        chat_model: Option<String>,
+        embedding_model: Option<String>,
+    ) -> Self {
+        let config = match api_base {
+            Some(base) if !base.trim().is_empty() => OpenAIConfig::new()
+                .with_api_key(api_key)
+                .with_api_base(base.trim().to_string()),
+            _ => OpenAIConfig::new().with_api_key(api_key),
+        };
         let client = Client::with_config(config);
 
         Self {
             client,
-            embedding_model: "text-embedding-3-small".to_string(),
-            chat_model: "gpt-4o-mini".to_string(),
+            embedding_model: embedding_model
+                .filter(|model| !model.trim().is_empty())
+                .unwrap_or_else(|| Self::DEFAULT_EMBEDDING_MODEL.to_string()),
+            chat_model: chat_model
+                .filter(|model| !model.trim().is_empty())
+                .unwrap_or_else(|| Self::DEFAULT_CHAT_MODEL.to_string()),
             _exact_match_threshold: 0.95,
             embedding_threshold: 0.85,
         }
@@ -49,25 +70,39 @@ impl OpenAIValidator {
         }
     }
 
-    /// Calculate similarity using OpenAI embeddings
+    /// Calculate similarity using OpenAI embeddings.
+    /// Uses two separate requests instead of a batch to ensure compatibility with
+    /// providers (e.g. Gemini) that don't support multi-input embedding requests.
     async fn check_embedding_similarity(&self, expected: &str, user_answer: &str) -> Result<f32> {
-        let request = CreateEmbeddingRequestArgs::default()
+        let req1 = CreateEmbeddingRequestArgs::default()
             .model(&self.embedding_model)
-            .input(vec![expected.to_string(), user_answer.to_string()])
+            .input(expected)
+            .build()?;
+        let req2 = CreateEmbeddingRequestArgs::default()
+            .model(&self.embedding_model)
+            .input(user_answer)
             .build()?;
 
-        let response = self.client.embeddings().create(request).await?;
+        let embeddings = self.client.embeddings();
+        let (resp1, resp2) = tokio::try_join!(
+            embeddings.create(req1),
+            embeddings.create(req2),
+        )?;
 
-        if response.data.len() < 2 {
-            return Ok(0.0);
-        }
+        let embedding1 = resp1
+            .data
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow::anyhow!("No embedding returned for expected answer"))?
+            .embedding;
+        let embedding2 = resp2
+            .data
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow::anyhow!("No embedding returned for user answer"))?
+            .embedding;
 
-        let embedding1 = &response.data[0].embedding;
-        let embedding2 = &response.data[1].embedding;
-
-        // Calculate cosine similarity
-        let similarity = cosine_similarity(embedding1, embedding2);
-        Ok(similarity)
+        Ok(cosine_similarity(&embedding1, &embedding2))
     }
 
     /// Validate using LLM
@@ -163,14 +198,31 @@ impl AIValidator for OpenAIValidator {
         }
 
         // Strategy 3: LLM validation (most expensive)
-        let score = self
+        match self
             .check_llm_validation(expected_answer, user_answer, question_context)
-            .await?;
-
-        Ok(ValidationResult {
-            score,
-            method: ValidationMethod::Llm,
-        })
+            .await
+        {
+            Ok(score) => Ok(ValidationResult {
+                score,
+                method: ValidationMethod::Llm,
+            }),
+            Err(e) => {
+                // LLM also unavailable — fall back to local Jaccard similarity so
+                // the review endpoint never returns 500 due to a transient AI error.
+                tracing::warn!("LLM validation failed: {}, falling back to Jaccard", e);
+                let expected_words: std::collections::HashSet<&str> =
+                    expected_answer.split_whitespace().collect();
+                let user_words: std::collections::HashSet<&str> =
+                    user_answer.split_whitespace().collect();
+                let intersection = expected_words.intersection(&user_words).count() as f32;
+                let union = expected_words.union(&user_words).count() as f32;
+                let score = if union > 0.0 { intersection / union } else { 0.0 };
+                Ok(ValidationResult {
+                    score,
+                    method: ValidationMethod::Exact,
+                })
+            }
+        }
     }
 }
 
