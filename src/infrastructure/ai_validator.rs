@@ -40,7 +40,9 @@ impl OpenAIValidator {
         let config = match api_base {
             Some(base) if !base.trim().is_empty() => OpenAIConfig::new()
                 .with_api_key(api_key)
-                .with_api_base(base.trim().to_string()),
+                // async-openai appends paths with a leading `/` (e.g. "/embeddings"),
+                // so the base URL must NOT end with a slash to avoid double-slash URLs.
+                .with_api_base(base.trim().trim_end_matches('/').to_string()),
             _ => OpenAIConfig::new().with_api_key(api_key),
         };
         let client = Client::with_config(config);

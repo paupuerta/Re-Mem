@@ -30,6 +30,10 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://re_mem:password@postgres:5432/re_mem
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-}
       RUST_LOG: info
       SERVER_PORT: 3000
     ports:

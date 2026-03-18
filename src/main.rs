@@ -88,7 +88,16 @@ async fn main() {
     ) = match std::env::var("OPENAI_API_KEY") {
         Ok(api_key) => {
             tracing::info!("Using OpenAI validator");
-            let validator = Arc::new(OpenAIValidator::new(api_key));
+            let api_base = std::env::var("OPENAI_BASE_URL").ok();
+            let chat_model = std::env::var("OPENAI_CHAT_MODEL").ok();
+            let embedding_model = std::env::var("OPENAI_EMBEDDING_MODEL").ok();
+
+            let validator = Arc::new(OpenAIValidator::new_with_config(
+                api_key,
+                api_base,
+                chat_model,
+                embedding_model,
+            ));
             let embedding: Arc<dyn EmbeddingService> = validator.clone();
             let uc = Arc::new(ReviewCardUseCase::new(
                 card_repo.clone(),
